@@ -1,0 +1,13 @@
+target/
+*.log
+__pycache__/
+.idea/
+*.iml
+
+# 数据目录
+data/
+cangshu-data/
+db/
+files/
+*.mv.db
+*.trace.db
