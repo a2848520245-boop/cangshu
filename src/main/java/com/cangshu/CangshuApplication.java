@@ -14,7 +14,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan
-@MapperScan("com.cangshu.catalog.mapper")
+@MapperScan({"com.cangshu.catalog.mapper", "com.cangshu.search.mapper"})
 public class CangshuApplication {
 
     public static void main(String[] args) {

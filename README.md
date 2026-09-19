@@ -21,16 +21,21 @@ M1 无前端；Vue 3、TypeScript、Vite 属后续规划。多用户、外网、
 - 上传资源（任务 3）：`POST /api/resources`，`multipart/form-data`，字段 `file`（必填、单文件）；
   服务端流式接收并同时计算 SHA-256（不整文件读入内存）；相同内容复用既有物理内容（响应带
   `deduplicated`／`contentId`）；错误码 400／409（含 `reason`）／413／503 见《M1-接口契约》§2。
+- 资源列表与检索（任务 4）：`GET /api/resources?name=&tag=&page=1&size=20`，`name` 为文件名包含匹配
+  （大小写不敏感，pg_trgm GIN），`tag` 为标签过滤（jsonb `@>` GIN），排序固定 id DESC（UUIDv7 时间有序）。
+- 资源详情（任务 4）：`GET /api/resources/{id}` → 200 资源对象另带 `contentId`（内容关联的引用关系
+  展示）；不存在或已在回收站 → 404；ID 非法 → 400。回收站中的资源对普通列表／详情不可见。
 
 ### 数据库（任务 3 起）
 
 - 开发轨默认：本机 PostgreSQL 17（`jdbc:postgresql://127.0.0.1:5432/cangshu`，可用 `CANGSHU_DB_URL`／
   `CANGSHU_DB_USER`／`CANGSHU_DB_PASSWORD` 覆盖）；表位于隔离 schema `cangshu_m1`。
-- 首次初始化（禁空库降级）：建库 → 人工执行迁移脚本（DDL 与记账同事务）：
-  `psql -d <库> -v script_sha256=<V1__init.sql 的 SHA-256> -f db/migration/V1__init.sql`；
+- 首次初始化（禁空库降级）：建库 → 人工按序执行迁移脚本（DDL 与记账同事务）：
+  `psql -d <库> -v script_sha256=<脚本文件 SHA-256> -f db/migration/V1__init.sql`，
+  再对 V2__search_indexes.sql 重复同一流程（检索索引：pg_trgm ＋ jsonb_path_ops）；
   脚本只增不改，台账 `schema_version` 记录版本与脚本摘要。
 - 测试前提：`mvn test` 的集成测试需要本机 PostgreSQL 17 运行，且测试库（默认 `cangshu_test`）
-  已按上述步骤执行过 `V1__init.sql`。
+  已按上述步骤执行过 `V1__init.sql` 与 `V2__search_indexes.sql`。
 
 ## 工作入口
 

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -37,6 +38,13 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMissingPart(Exception exception) {
         return respond(HttpStatus.BAD_REQUEST, CatalogException.invalidArgument(
                 "缺少必填的 multipart 字段 file"));
+    }
+
+    /** 路径／查询参数类型不匹配（如非 UUID 的资源 ID、非整数的分页参数）→ 400。 */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        return respond(HttpStatus.BAD_REQUEST, CatalogException.invalidArgument(
+                "参数格式错误：" + exception.getName()));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
