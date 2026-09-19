@@ -22,9 +22,14 @@ M1 无前端；Vue 3、TypeScript、Vite 属后续规划。多用户、外网、
   服务端流式接收并同时计算 SHA-256（不整文件读入内存）；相同内容复用既有物理内容（响应带
   `deduplicated`／`contentId`）；错误码 400／409（含 `reason`）／413／503 见《M1-接口契约》§2。
 - 资源列表与检索（任务 4）：`GET /api/resources?name=&tag=&page=1&size=20`，`name` 为文件名包含匹配
-  （大小写不敏感，pg_trgm GIN），`tag` 为标签过滤（jsonb `@>` GIN），排序固定 id DESC（UUIDv7 时间有序）。
+  （大小写不敏感，pg_trgm GIN），`tag` 为标签过滤（jsonb `@>` GIN），排序固定 id DESC（UUIDv7 时间有序）；
+  `page`／`size` 缺省 1／20，小于 1 → 400。
 - 资源详情（任务 4）：`GET /api/resources/{id}` → 200 资源对象另带 `contentId`（内容关联的引用关系
   展示）；不存在或已在回收站 → 404；ID 非法 → 400。回收站中的资源对普通列表／详情不可见。
+- 资源下载与预览（任务 5）：`GET /api/resources/{id}/content`，默认 `attachment`，文件名按
+  RFC 5987 编码（`filename*=UTF-8''…`，中文文件名原样保留）；`?inline=1` 改为浏览器内联预览，
+  只改响应处置头、不改字节与摘要，`inline` 仅接受 `1`，其他取值 → 400。
+  不存在或已在回收站（软删）→ 404；盘上字节缺失或与内容身份不符 → 500 拒绝下载，绝不返回空文件。
 
 ### 数据库（任务 3 起）
 
