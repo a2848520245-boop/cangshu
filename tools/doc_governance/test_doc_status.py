@@ -869,6 +869,18 @@ class TestLint(Base):
         self.assertEqual(code, 1)
         self.assertIn("超过预算", stdout)
 
+    def test_adr_within_relaxed_budget_prints_ok(self):
+        """打印与判定使用同一生效上限：ADR 在 20000～32000 区间应判 OK 并打 [OK]（limit=32000）。"""
+        self.make_live_docs()
+        self.write_tasks([self.task_row()])
+        (self.docs / "ADR-0001-项目启动与技术栈裁决.md").write_text(
+            "x" * 25000, encoding="utf-8"
+        )
+        code, stdout, _ = self.run_lint()
+        self.assertEqual(code, 0, stdout)
+        self.assertIn("[OK] ADR-0001-项目启动与技术栈裁决.md：25000 / 32000 bytes", stdout)
+        self.assertNotIn("[FAIL] ADR-0001", stdout)
+
     def test_duplicate_block_id_fails(self):
         self.make_live_docs()
         self.write_tasks([self.task_row()])

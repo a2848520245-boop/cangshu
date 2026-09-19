@@ -1150,7 +1150,9 @@ def cmd_lint(args) -> int:
     else:
         if size_report:
             for item in size_report:
-                mark = "OK" if item["bytes"] <= MAX_DOC_BYTES else "FAIL"
+                # 打印与判定使用同一生效上限（DOC_BYTE_BUDGETS 覆盖后的 limit），
+                # 避免 ADR-0001（limit=32000）在 20000～32000 区间被误打 [FAIL]。
+                mark = "OK" if item["bytes"] <= item["limit"] else "FAIL"
                 print(f"[{mark}] {item['name']}：{item['bytes']} / {item['limit']} bytes")
         if not findings:
             print("[OK] 12 份根活文档字节预算")
