@@ -7,7 +7,11 @@ __pycache__/
 # 数据目录
 data/
 cangshu-data/
-db/
+# db/ 下运行时产物忽略；迁移脚本（db/migration/*.sql，只增不改）纳入版本控制
+db/*
+!db/migration/
+db/migration/*
+!db/migration/*.sql
 files/
 var/
 *.mv.db

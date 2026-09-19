@@ -6,6 +6,27 @@ spring:
   application:
     name: cangshu
 
+  servlet:
+    multipart:
+      # HTTP 层 multipart 限制与 cangshu.upload.max-size 同源（07-运行手册 §1）：
+      # MultipartLimitsConfig 依据业务上限生成 MultipartConfigElement
+      # （请求上限＝文件上限＋协议开销余量，不把请求上限直接等同于文件字节上限）。
+      # 此处仅保留阈值：超过阈值的分片由 Tomcat 落磁盘，业务层再流式落数据根临时区。
+      file-size-threshold: 1MB
+
+  datasource:
+    # 开发轨默认（07-运行手册 §3：本机 PostgreSQL 17 服务，隔离 schema cangshu_m1）；
+    # 交付/实验环境经环境变量注入。库的初始化＝人工执行 db/migration/V1__init.sql（禁空库降级）。
+    url: ${CANGSHU_DB_URL:jdbc:postgresql://127.0.0.1:5432/cangshu?currentSchema=cangshu_m1}
+    username: ${CANGSHU_DB_USER:postgres}
+    password: ${CANGSHU_DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  type-handlers-package: com.cangshu.common.mybatis
+
 server:
   port: 8080
 

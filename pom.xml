@@ -15,10 +15,13 @@
   <artifactId>cangshu</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <name>cangshu</name>
-  <description>CangShu M1 minimal bootable service (task 2): health check, minimal interface, config injection</description>
+  <description>CangShu M1 modular monolith (task 3): single-file upload with streaming hash, content addressing and dedup</description>
 
   <properties>
     <java.version>21</java.version>
+    <mybatis-plus.version>3.5.17</mybatis-plus.version>
+    <postgresql.version>42.7.11</postgresql.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
   <dependencies>
@@ -29,6 +32,22 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- 数据访问（任务 3 上传落库所需；ORM 按 ADR 暂定 MyBatis-Plus，PostgreSQL 17） -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+      <version>${mybatis-plus.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${postgresql.version}</version>
     </dependency>
 
     <dependency>

@@ -7,19 +7,30 @@
 Java 21、Spring Boot 3.5、Maven、MyBatis-Plus、PostgreSQL 17，模块化单体。
 M1 无前端；Vue 3、TypeScript、Vite 属后续规划。多用户、外网、目录导入、分片与秒传不在 M1。
 
-## 构建与运行（任务 2 最小工程）
+## 构建与运行
 
-- 构建：`JAVA_HOME` 指向 JDK 21 后执行 `mvn -B -ntp package`（默认端口 8080）。
+- 构建：`JAVA_HOME` 指向 JDK 21 后执行 `mvn -B -ntp -Dmaven.repo.local=var/m2repo package`（默认端口 8080）。
 - 启动：`java -jar target/cangshu-0.1.0-SNAPSHOT.jar`。
-- 健康检查：`GET /actuator/health` → `{"status":"UP"}`。
+- 健康检查：`GET /actuator/health` → `{"status":"UP"}`（引入数据源后，健康概要含数据库可达性）。
 - 最小接口：`GET /api/health` → 服务状态与六个定稿配置键的生效值（数据根为解析后的规范绝对路径）；
   启动日志同时输出一行 `CANGSHU|config|dataRoot=…` 记录解析结果。
 - 配置键与环境变量映射见《M1-运行手册》§1（知识库 `10-常用/仓鼠/07-M1-运行手册`）：
   `cangshu.data-root`→`CANGSHU_DATA_ROOT`、`cangshu.upload.max-size`→`CANGSHU_UPLOAD_MAX_SIZE`、
   `cangshu.trash.retention`→`CANGSHU_TRASH_RETENTION`、`cangshu.migration.dir`→`CANGSHU_MIGRATION_DIR`；
   `cangshu.migration.lock-key` 与 `cangshu.writer.lock-key` 是协议常量，不支持运行配置覆盖。
-- 数据根：开发默认 `./var/data-root`（相对运行目录），目录由存储层在后续任务创建，本任务不落盘。
-- 数据库：任务 2 不引入数据源；数据模型与迁移分别属任务 12 与任务 30。
+- 上传资源（任务 3）：`POST /api/resources`，`multipart/form-data`，字段 `file`（必填、单文件）；
+  服务端流式接收并同时计算 SHA-256（不整文件读入内存）；相同内容复用既有物理内容（响应带
+  `deduplicated`／`contentId`）；错误码 400／409（含 `reason`）／413／503 见《M1-接口契约》§2。
+
+### 数据库（任务 3 起）
+
+- 开发轨默认：本机 PostgreSQL 17（`jdbc:postgresql://127.0.0.1:5432/cangshu`，可用 `CANGSHU_DB_URL`／
+  `CANGSHU_DB_USER`／`CANGSHU_DB_PASSWORD` 覆盖）；表位于隔离 schema `cangshu_m1`。
+- 首次初始化（禁空库降级）：建库 → 人工执行迁移脚本（DDL 与记账同事务）：
+  `psql -d <库> -v script_sha256=<V1__init.sql 的 SHA-256> -f db/migration/V1__init.sql`；
+  脚本只增不改，台账 `schema_version` 记录版本与脚本摘要。
+- 测试前提：`mvn test` 的集成测试需要本机 PostgreSQL 17 运行，且测试库（默认 `cangshu_test`）
+  已按上述步骤执行过 `V1__init.sql`。
 
 ## 工作入口
 
