@@ -101,4 +101,26 @@ class FileStoreTests {
         assertThrows(IllegalArgumentException.class, () -> files.blobPath("sha256/ab"));
         assertThrows(IllegalArgumentException.class, () -> files.blobPath(null));
     }
+
+    @Test
+    void openAndBlobSizeServeContentBytes() throws Exception {
+        byte[] content = "下载路径：open 与 blobSize 原语（任务 5）".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        FileStore.Staged staged = stage(content, -1);
+        String key = files.storageKey("SHA-256", staged.digest());
+        files.moveInto(staged.temp(), key);
+
+        assertEquals(content.length, files.blobSize(key), "blobSize＝内容字节大小");
+        try (java.io.InputStream in = files.open(key)) {
+            assertTrue(java.util.Arrays.equals(content, in.readAllBytes()), "open 返回完整只读流");
+        }
+    }
+
+    @Test
+    void openAndBlobSizeRejectMissingBlobAndIllegalKeys() throws Exception {
+        String key = files.storageKey("SHA-256", "ab".repeat(32));
+        assertThrows(java.nio.file.NoSuchFileException.class, () -> files.blobSize(key),
+                "缺失字节显式失败（不得返回空流）");
+        assertThrows(java.nio.file.NoSuchFileException.class, () -> files.open(key));
+        assertThrows(IllegalArgumentException.class, () -> files.open("../../escape"));
+    }
 }

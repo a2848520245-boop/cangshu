@@ -88,6 +88,20 @@ public class FileStore {
                 && Files.isRegularFile(dataRoot.resolve(storageKey));
     }
 
+    /** 内容字节大小（下载校验与 Content-Length 用）；文件缺失抛 {@link NoSuchFileException}。 */
+    public long blobSize(String storageKey) throws IOException {
+        return Files.size(blobPath(storageKey));
+    }
+
+    /**
+     * 打开内容字节的只读流（下载路径，任务 5；调用方负责关闭流）。
+     * 键形状不合法抛 {@link IllegalArgumentException}；文件缺失抛 {@link NoSuchFileException}，
+     * 由业务层翻译为「拒绝下载并告警」（08-验收规范 §4：缺失字节不得返回空文件）。
+     */
+    public InputStream open(String storageKey) throws IOException {
+        return Files.newInputStream(blobPath(storageKey));
+    }
+
     /** 逐字节比较（DEC-T4 第二步）；任一侧缺失或大小不同 → false（大小比较由调用方先行）。 */
     public boolean sameBytes(Path temp, String storageKey) throws IOException {
         Path blob = blobPath(storageKey);
