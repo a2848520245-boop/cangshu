@@ -1,25 +1,22 @@
 # 仓鼠 CangShu
 
-仓鼠是个人资源管理 PRM 的 M1：单机单用户最小闭环。
+仓鼠是个人资源管理 PRM 项目。M1 范围为单机、单用户、本地或局域网的最小资源闭环。
 
-## 技术栈
+## 技术与范围
 
-Java 21 + Spring Boot 3.5.x + Maven + MyBatis-Plus + PostgreSQL 17 + Vue 3 + TypeScript + Vite。
+Java 21、Spring Boot 3.5、Maven、MyBatis-Plus、PostgreSQL 17，模块化单体。
+M1 无前端；Vue 3、TypeScript、Vite 属后续规划。多用户、外网、目录导入、分片与秒传不在 M1。
 
-规划采用模块化单体，包含六个模块：`ingest`、`catalog`、`storage`、`search`、`job`、`api`。当前均为占位，尚未实现。
+## 工作入口
 
-## 原型仓库与验收证据
+先读 [AGENTS.md](AGENTS.md)。设计与契约维护在个人笔记库：
+`E:/詩/Documents/NOTE/obsidian-kb-starter/10-常用/仓鼠/仓鼠项目-总览.md`。
+任务与验收以该目录的 `M1-任务表.md` 为准，不能从旧报告推断当前代码状态。
 
-原型仓库：[cangshu-mvp](https://github.com/a2848520245-boop/cangshu-mvp)
+文档治理工具与检查命令：[tools/doc_governance/README.md](tools/doc_governance/README.md)。
+本仓的工具测试结果只证明治理工具，不代表 M1 业务功能验收。
 
-原型已冻结 tag：`v0.1-mvp-prototype`。
+## 冻结原型
 
-原型验收证据：24 项接口冒烟测试通过，12 项浏览器端到端测试通过。
-
-## 文档说明
-
-分层与架构文档维护在个人笔记库。本仓库只放工程产物与链接说明。
-
-## 状态
-
-M1 骨架待建，先占位。
+原型仓：[cangshu-mvp](https://github.com/a2848520245-boop/cangshu-mvp)，冻结标记 `v0.1-mvp-prototype`。
+原型与 M1 的实现和验收分别管理，不把原型测试当作 M1 测试。
