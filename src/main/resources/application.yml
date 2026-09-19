@@ -1,0 +1,27 @@
+# 仓鼠 M1 应用配置。
+# 六个 cangshu.* 键为《07-M1-运行手册》§1 的定稿键名与默认值；
+# 环境变量映射：CANGSHU_DATA_ROOT / CANGSHU_UPLOAD_MAX_SIZE / CANGSHU_TRASH_RETENTION / CANGSHU_MIGRATION_DIR。
+# cangshu.migration.lock-key 与 cangshu.writer.lock-key 是协议常量，不支持运行配置覆盖。
+spring:
+  application:
+    name: cangshu
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+cangshu:
+  data-root: ./var/data-root
+  upload:
+    max-size: 2GB
+  trash:
+    retention: 7d
+  migration:
+    dir: ./db/migration
+  # cangshu.migration.lock-key（20260918）与 cangshu.writer.lock-key（20260919）是协议常量，
+  # 不进可配置文件、不支持运行配置覆盖；登记值只在 CangshuProperties 中以 final 字段持有。

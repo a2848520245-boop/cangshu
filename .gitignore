@@ -9,5 +9,6 @@ data/
 cangshu-data/
 db/
 files/
+var/
 *.mv.db
 *.trace.db

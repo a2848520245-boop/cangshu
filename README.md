@@ -7,6 +7,20 @@
 Java 21、Spring Boot 3.5、Maven、MyBatis-Plus、PostgreSQL 17，模块化单体。
 M1 无前端；Vue 3、TypeScript、Vite 属后续规划。多用户、外网、目录导入、分片与秒传不在 M1。
 
+## 构建与运行（任务 2 最小工程）
+
+- 构建：`JAVA_HOME` 指向 JDK 21 后执行 `mvn -B -ntp package`（默认端口 8080）。
+- 启动：`java -jar target/cangshu-0.1.0-SNAPSHOT.jar`。
+- 健康检查：`GET /actuator/health` → `{"status":"UP"}`。
+- 最小接口：`GET /api/health` → 服务状态与六个定稿配置键的生效值（数据根为解析后的规范绝对路径）；
+  启动日志同时输出一行 `CANGSHU|config|dataRoot=…` 记录解析结果。
+- 配置键与环境变量映射见《M1-运行手册》§1（知识库 `10-常用/仓鼠/07-M1-运行手册`）：
+  `cangshu.data-root`→`CANGSHU_DATA_ROOT`、`cangshu.upload.max-size`→`CANGSHU_UPLOAD_MAX_SIZE`、
+  `cangshu.trash.retention`→`CANGSHU_TRASH_RETENTION`、`cangshu.migration.dir`→`CANGSHU_MIGRATION_DIR`；
+  `cangshu.migration.lock-key` 与 `cangshu.writer.lock-key` 是协议常量，不支持运行配置覆盖。
+- 数据根：开发默认 `./var/data-root`（相对运行目录），目录由存储层在后续任务创建，本任务不落盘。
+- 数据库：任务 2 不引入数据源；数据模型与迁移分别属任务 12 与任务 30。
+
 ## 工作入口
 
 先读 [AGENTS.md](AGENTS.md)。设计与契约维护在个人笔记库：
