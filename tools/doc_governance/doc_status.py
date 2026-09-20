@@ -44,6 +44,12 @@ BASELINE_FILES = (
     "08-M1-验收规范.md",
 )
 
+#: 规范基线计算规则（口径与 01-开发宪章与治理 §规范基线 一致，2026-09-20 裁决统一）：
+#: 含该标记的文件只取「标记之前」的 UTF-8 字节计算校验值（标记所在行及其后内容不参与），
+#: 不含该标记的文件取整文件哈希。目的＝让 01 内部的基线表自身不参与计算，
+#: 避免「按规则校准基线表 → 基线又一次改变」的循环。
+BASELINE_MARKER = b"<!-- baseline:start -->"
+
 #: 根目录 12 份活文档（lint 篇幅预算对象）。
 LIVE_DOCS = (
     "仓鼠项目-总览.md",
@@ -146,6 +152,22 @@ def sha256_file(path: Path) -> tuple[str, int]:
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def baseline_scoped_bytes(raw: bytes) -> bytes:
+    """按 01 §规范基线 的规则截取参与校验值计算的字节（含标记 → 只取标记之前）。"""
+    index = raw.find(BASELINE_MARKER)
+    return raw if index < 0 else raw[:index]
+
+
+def baseline_file_digest(path: Path) -> tuple[str, int, int, bool]:
+    """规范文件的校验值：返回 (sha256, 参与哈希字节数, 文件总字节数, 是否含标记)。"""
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise DocStatusError(f"无法读取规范文件 {path}：{exc}") from exc
+    scoped = baseline_scoped_bytes(raw)
+    return hashlib.sha256(scoped).hexdigest(), len(scoped), len(raw), len(scoped) != len(raw)
 
 
 def read_text(path: Path, encoding: str = "utf-8") -> str:
@@ -335,18 +357,35 @@ def observe_repo(repo: Path) -> dict:
 
 
 def compute_baseline(docs: Path) -> dict:
-    """对固定 8 个规范文件取 SHA-256，生成规范基线 ID。"""
+    """对固定 8 个规范文件取校验值，生成规范基线 ID。
+
+    逐文件校验值的口径见 ``BASELINE_MARKER`` 上方的说明：含 ``<!-- baseline:start -->``
+    的文件只取标记之前的字节，其余取整文件哈希；``baseline_id`` 仍按固定顺序拼接
+    ``文件名 + 校验值`` 后再取一次 SHA-256。
+    """
     files: dict[str, dict] = {}
     missing: list[str] = []
     canonical: list[str] = []
     for name in BASELINE_FILES:
         path = docs / name
         if path.is_file():
-            digest, size = sha256_file(path)
-            files[name] = {"present": True, "sha256": digest, "bytes": size}
+            digest, scoped, file_bytes, marker = baseline_file_digest(path)
+            files[name] = {
+                "present": True,
+                "sha256": digest,
+                "bytes": scoped,
+                "file_bytes": file_bytes,
+                "marker": marker,
+            }
             canonical.append(f"{name}\n{digest}\n")
         else:
-            files[name] = {"present": False, "sha256": None, "bytes": None}
+            files[name] = {
+                "present": False,
+                "sha256": None,
+                "bytes": None,
+                "file_bytes": None,
+                "marker": False,
+            }
             missing.append(name)
             canonical.append(f"{name}\nMISSING\n")
     baseline_id = "sha256:" + sha256_bytes("".join(canonical).encode("utf-8"))
@@ -362,7 +401,12 @@ def compute_baseline(docs: Path) -> dict:
 
 
 def normalize_baseline(value) -> str | None:
-    """把各种 manifest 基线写法归一成 ``sha256:<hex>``，无法解析返回 None。"""
+    """把各种 manifest 基线写法归一成 ``sha256:<hex>``，无法解析返回 None。
+
+    「文件名 → 哈希」映射形式里的每个哈希必须是**同一口径的逐文件校验值**
+    （含 ``<!-- baseline:start -->`` 的文件用标记前字节口径，其余用整文件口径），
+    否则归一化结果会与 :func:`compute_baseline` 不等。
+    """
     if value is None:
         return None
     if isinstance(value, str):

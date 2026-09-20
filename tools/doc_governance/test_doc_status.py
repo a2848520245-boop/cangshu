@@ -327,6 +327,78 @@ class TestSnapshot(Base):
 
 
 @unittest.skipUnless(GIT, "需要 git")
+class TestBaselineRule(Base):
+    """规范基线口径（2026-09-20 裁决统一）：含 baseline 标记的文件取标记前字节，其余取整文件。"""
+
+    MARKER = "<!-- baseline:start -->"
+
+    def target(self) -> Path:
+        return self.docs / doc_status.BASELINE_FILES[0]
+
+    def entry(self):
+        return doc_status.compute_baseline(self.docs)["files"][doc_status.BASELINE_FILES[0]]
+
+    def write_marked(self, before: str, after: str) -> None:
+        self.target().write_text(f"{before}{self.MARKER}\n{after}\n", encoding="utf-8")
+
+    def test_marker_file_uses_prefix_hash(self):
+        # 期望值一律按磁盘实际字节算：Path.write_text 在 Windows 会把 \n 翻成 \r\n，
+        # 用字符串算期望值会得到假失败。
+        self.write_marked("# 治理\n规则正文\n", "| 1 | 基线表 |")
+        raw = self.target().read_bytes()
+        marker_at = raw.find(doc_status.BASELINE_MARKER)
+        self.assertGreater(marker_at, 0)
+        info = self.entry()
+        self.assertTrue(info["marker"])
+        self.assertEqual(info["sha256"], hashlib.sha256(raw[:marker_at]).hexdigest())
+        self.assertEqual(info["bytes"], marker_at)
+        self.assertEqual(info["file_bytes"], len(raw))
+        self.assertLess(info["bytes"], info["file_bytes"])
+        self.assertNotEqual(info["sha256"], hashlib.sha256(raw).hexdigest())
+
+    def test_file_without_marker_uses_full_hash(self):
+        self.target().write_text("# 治理\n无标记\n", encoding="utf-8")
+        raw = self.target().read_bytes()
+        info = self.entry()
+        self.assertFalse(info["marker"])
+        self.assertEqual(info["sha256"], hashlib.sha256(raw).hexdigest())
+        self.assertEqual(info["bytes"], len(raw))
+        self.assertEqual(info["file_bytes"], len(raw))
+
+    def test_editing_after_marker_does_not_change_baseline(self):
+        """反循环回归（CL-BASELINE 判据）：校准标记之后的基线表不得再次改变基线。"""
+        self.write_marked("# 治理\n规则正文\n", "| 1 | 旧值 |")
+        first = self.baseline_id()
+        self.write_marked("# 治理\n规则正文\n", "| 1 | 新值 |\n| 2 | 又一行 |")
+        self.assertEqual(self.baseline_id(), first)
+
+    def test_editing_before_marker_changes_baseline(self):
+        self.write_marked("# 治理\n规则正文\n", "| 1 | 值 |")
+        first = self.baseline_id()
+        self.write_marked("# 治理\n规则改过了\n", "| 1 | 值 |")
+        self.assertNotEqual(self.baseline_id(), first)
+
+    def test_snapshot_reports_marker_metadata(self):
+        self.write_marked("# 治理\n规则正文\n", "| 1 | 值 |")
+        out = self.tmp / "out" / "snap.json"
+        code, stdout, _ = self.run_main(
+            [
+                "snapshot",
+                "--repo",
+                str(self.tmp / "repo-missing"),
+                "--docs",
+                str(self.docs),
+                "--out",
+                str(out),
+            ]
+        )
+        self.assertEqual(code, 0, stdout)
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        entry = payload["docs"]["files"][doc_status.BASELINE_FILES[0]]
+        self.assertTrue(entry["marker"])
+        self.assertLess(entry["bytes"], entry["file_bytes"])
+
+
 class TestCheckPositive(Base):
     def test_matching_evidence_passes(self):
         repo, head = self.make_repo()
