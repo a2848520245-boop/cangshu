@@ -23,7 +23,7 @@ M1 无前端；Vue 3、TypeScript、Vite 属后续规划。多用户、外网、
   `deduplicated`／`contentId`）；错误码 400／409（含 `reason`）／413／503 见《M1-接口契约》§2。
 - 资源列表与检索（任务 4）：`GET /api/resources?name=&tag=&page=1&size=20`，`name` 为文件名包含匹配
   （大小写不敏感，pg_trgm GIN），`tag` 为标签过滤（jsonb `@>` GIN），排序固定 id DESC（UUIDv7 时间有序）；
-  `page`／`size` 缺省 1／20，小于 1 → 400。
+  `page`／`size` 缺省 1／20，小于 1 → 400；`size` 上限 **200**，超出 → 400（契约 §3.2，2026-09-20 澄清补入）。
 - 资源详情（任务 4）：`GET /api/resources/{id}` → 200 资源对象另带 `contentId`（内容关联的引用关系
   展示）；不存在或已在回收站 → 404；ID 非法 → 400。回收站中的资源对普通列表／详情不可见。
 - 资源下载与预览（任务 5）：`GET /api/resources/{id}/content`，默认 `attachment`，文件名按

@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -57,6 +59,25 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMultipart(Exception exception) {
         return respond(HttpStatus.BAD_REQUEST,
                 CatalogException.invalidArgument("请求格式错误：" + exception.getClass().getSimpleName()));
+    }
+
+    /**
+     * 请求声明的媒体类型不受支持（例如上传端点收到 {@code application/json}）→ 400。
+     * 契约 §2 错误码表未定义 415，按 DEC-I10 同类口径不新增语义，归入既有的 {@code INVALID_ARGUMENT}。
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException exception) {
+        return respond(HttpStatus.BAD_REQUEST, CatalogException.invalidArgument(
+                "请求媒体类型不受支持：端点要求的媒体类型见《05-M1-接口契约》"));
+    }
+
+    /**
+     * 无法按请求的 {@code Accept} 返回响应 → 400（同上，契约未定义 406，不新增语义）。
+     */
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ErrorResponse> handleNotAcceptable(HttpMediaTypeNotAcceptableException exception) {
+        return respond(HttpStatus.BAD_REQUEST, CatalogException.invalidArgument(
+                "无法按请求的 Accept 返回响应：本服务响应为 JSON"));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

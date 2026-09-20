@@ -207,6 +207,20 @@ class ResourceQueryIntegrationTests {
     }
 
     @Test
+    void pageSizeAboveContractLimitReturns400() throws Exception {
+        // 契约 §3.2 上限 200（CL-PAGESIZE 裁决）：超限必须 400，不得静默截断或整表返回
+        upload("上限边界.txt", "上限".getBytes(StandardCharsets.UTF_8));
+
+        HttpResponse<String> ok = get("/api/resources?size=200");
+        assertEquals(200, ok.statusCode(), "上限值本身必须放行");
+        assertEquals(1, mapper.readTree(ok.body()).get("total").asLong());
+
+        for (String size : new String[] {"201", "100000000", "2147483647"}) {
+            assertErrorBody(get("/api/resources?size=" + size), 400, "INVALID_ARGUMENT");
+        }
+    }
+
+    @Test
     void detailReturnsContentAssociationAnd404ForUnknown() throws Exception {
         byte[] content = "任务4详情引用关系".getBytes(StandardCharsets.UTF_8);
         JsonNode uploaded = upload("详情核对.txt", content);

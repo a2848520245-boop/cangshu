@@ -44,6 +44,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api")
 public class ResourceController {
 
+    /** 单页条数上限（契约 §3.2，2026-09-20 澄清 `CL-PAGESIZE` 裁决）：超出即 400，不静默截断。 */
+    public static final int MAX_PAGE_SIZE = 200;
+
     private final UploadIngestService ingest;
     private final CatalogService catalog;
     private final ResourceQueryService queries;
@@ -82,6 +85,9 @@ public class ResourceController {
      * 列表／检索（契约 §3.2）：{@code name} 文件名包含匹配（大小写不敏感）、{@code tag} 标签过滤、
      * {@code page}（默认 1）与 {@code size}（默认 20）分页；参数非法 → 400 {@code INVALID_ARGUMENT}。
      * 排序固定 id DESC（UUIDv7 时间有序，实现口径见 ResourceQueryMapper）。
+     *
+     * <p>{@code size} 上限 {@value #MAX_PAGE_SIZE}（契约 §3.2，2026-09-20 澄清后补入）：无上界时
+     * 单次请求可把全表读进内存，与 ACC-G1 的百万级元数据目标冲突。
      */
     @GetMapping("/resources")
     public ResourceListResponse list(
@@ -91,6 +97,10 @@ public class ResourceController {
             @RequestParam(name = "size", defaultValue = "20") int size) {
         if (page < 1 || size < 1) {
             throw CatalogException.invalidArgument("分页参数非法：page 与 size 必须为不小于 1 的整数");
+        }
+        if (size > MAX_PAGE_SIZE) {
+            throw CatalogException.invalidArgument(
+                    "分页参数非法：size 不得超过 " + MAX_PAGE_SIZE + "（契约 §3.2）");
         }
         return ResourceListResponse.from(queries.list(name, tag, page, size));
     }

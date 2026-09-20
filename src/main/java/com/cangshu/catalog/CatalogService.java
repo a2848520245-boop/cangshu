@@ -84,6 +84,37 @@ public class CatalogService {
     }
 
     /**
+     * 入参字节的当前位置：先在临时文件，G 分支移动成功后改记为内容地址。
+     *
+     * <p>重试轮次必须按当前位置取字节——移动已经发生还去读临时文件，会把「字节一致」误判成
+     * 「字节不一致」，从而把一次可复用的上传报成 409 并写下不实的冲突审计（04 §4 G 分支要求
+     * 「新事务重验字节后转复用」）。
+     */
+    static final class IncomingBytes {
+
+        private final Path temp;
+        private String contentAddress;
+
+        IncomingBytes(Path temp) {
+            this.temp = temp;
+        }
+
+        /** 移动已把临时文件变成内容地址上的正式字节。 */
+        void markMovedTo(String storageKey) {
+            this.contentAddress = storageKey;
+        }
+
+        /** 非 null 表示入参字节已在内容地址；null 表示仍在临时文件。 */
+        String contentAddress() {
+            return contentAddress;
+        }
+
+        Path temp() {
+            return temp;
+        }
+    }
+
+    /**
      * 上传主路径：摘要已在锁外算好；取分段锁后按七分支处理。
      * 临时文件在成功（A 已移动）或终态失败（清理）后不再保留。
      */
@@ -99,9 +130,10 @@ public class CatalogService {
                     + SegmentLockManager.WAIT_TIMEOUT_SECONDS + " 秒）");
         }
         try (handle) {
+            IncomingBytes incoming = new IncomingBytes(staged.temp());
             for (int attempt = 0; ; attempt++) {
                 try {
-                    return attemptLocked(staged, name, mimeType, digest, storageKey);
+                    return attemptLocked(staged, name, mimeType, digest, storageKey, incoming);
                 } catch (RetryableRaceException e) {
                     if (attempt >= RETRY_BACKOFF_MILLIS.length) {
                         files.deleteTemp(staged.temp());
@@ -124,7 +156,7 @@ public class CatalogService {
 
     /** 锁内一轮分支处理（④）；事务快照在进入本方法的事务开始时建立（取锁之后，③）。 */
     private UploadResult attemptLocked(StagedUpload staged, String name, String mimeType,
-            String digest, String storageKey) {
+            String digest, String storageKey, IncomingBytes incoming) {
         return writeTxn.execute(status -> {
             List<ContentEntity> rows = selectContentForUpdate(digest);
             if (rows.size() > 1) {
@@ -133,18 +165,18 @@ public class CatalogService {
                 throw CatalogException.internalError("同一算法＋摘要存在多条内容记录，拒绝写入并告警");
             }
             if (!rows.isEmpty()) {
-                return resolveWithExistingContent(rows.get(0), staged, name, mimeType, digest, storageKey);
+                return resolveWithExistingContent(rows.get(0), staged, name, mimeType, digest, storageKey, incoming);
             }
             if (files.blobExists(storageKey)) {
-                return resolveTargetOccupied(staged, name, mimeType, digest, storageKey);
+                return resolveTargetOccupied(staged, name, mimeType, digest, storageKey, incoming);
             }
-            return createNew(staged, name, mimeType, digest, storageKey);
+            return createNew(staged, name, mimeType, digest, storageKey, incoming);
         });
     }
 
     /** 分支 B／D／E：命中既有内容行——先比大小（D），再逐字节（E），两步都在移动之前。 */
     private UploadResult resolveWithExistingContent(ContentEntity existing, StagedUpload staged,
-            String name, String mimeType, String digest, String storageKey) {
+            String name, String mimeType, String digest, String storageKey, IncomingBytes incoming) {
         if (existing.getSizeBytes() != staged.sizeBytes()) {
             // D 大小冲突：不读取既有文件逐字节比较；写审计 → 409；原行原字节不动。
             recordConflict(digest, existing, staged, null, "SIZE_MISMATCH");
@@ -158,7 +190,7 @@ public class CatalogService {
             log.error("CANGSHU|alert|contentId={} 字节缺失，拒绝复用判定", existing.getId());
             throw CatalogException.internalError("既有内容字节缺失，拒绝写入并告警");
         }
-        if (!sameBytes(staged.temp(), existingKey, digest)) {
+        if (!sameBytes(incoming, existingKey, digest)) {
             // E 字节冲突：写审计 → 409；原行原字节不动。
             recordConflict(digest, existing, staged, existingKey, "BYTE_MISMATCH");
             log.warn("CANGSHU|conflict|reason=BYTE_MISMATCH|digest={}", digest);
@@ -170,8 +202,8 @@ public class CatalogService {
 
     /** 分支 F：库内无该摘要行而内容地址已有字节——字节相同幂等补齐索引行，不同写审计 409。 */
     private UploadResult resolveTargetOccupied(StagedUpload staged, String name, String mimeType,
-            String digest, String storageKey) {
-        if (!sameBytes(staged.temp(), storageKey, digest)) {
+            String digest, String storageKey, IncomingBytes incoming) {
+        if (!sameBytes(incoming, storageKey, digest)) {
             recordConflict(digest, null, staged, storageKey, "TARGET_PATH_EXISTS");
             log.warn("CANGSHU|conflict|reason=TARGET_PATH_EXISTS|digest={}", digest);
             throw CatalogException.conflict("TARGET_PATH_EXISTS",
@@ -182,17 +214,19 @@ public class CatalogService {
 
     /** 分支 A：新建——校验后原子移动（绝不覆盖），插内容＋位置＋资源。 */
     private UploadResult createNew(StagedUpload staged, String name, String mimeType,
-            String digest, String storageKey) {
+            String digest, String storageKey, IncomingBytes incoming) {
         FileStore.MoveOutcome outcome;
         try {
-            outcome = files.moveInto(staged.temp(), storageKey);
+            outcome = files.moveInto(incoming.temp(), storageKey);
         } catch (java.io.IOException e) {
             throw CatalogException.internalError("内容字节移动失败：" + e.getMessage());
         }
         if (outcome == FileStore.MoveOutcome.TARGET_EXISTS) {
-            // G 并发抢先：移动落空 → 新事务重验字节后转复用（本轮事务无写入，直接重开）。
+            // G 并发抢先：移动落空（临时文件仍在）→ 新事务重验字节后转复用。
             throw new RetryableRaceException();
         }
+        // 移动已发生：入参字节现在就在内容地址上，重试轮次必须按内容地址取它。
+        incoming.markMovedTo(storageKey);
         try {
             return insertContentLocationResource(staged, name, mimeType, digest, storageKey, false);
         } catch (DuplicateKeyException e) {
@@ -312,10 +346,17 @@ public class CatalogService {
         }
     }
 
-    /** 逐字节比较；IO 异常视为不可判定，显式报错并留故障事件（不静默当作「不一致」）。 */
-    private boolean sameBytes(Path temp, String storageKey, String digest) {
+    /**
+     * 逐字节比较。入参字节可能仍在临时文件（常规路径），也可能已经落在内容地址（G 分支移动成功后
+     * 的重试轮次）——两种位置都按同一「逐字节」口径比较，不因移动与否改变判定。
+     * IO 异常视为不可判定，显式报错并留故障事件（不静默当作「不一致」）。
+     */
+    private boolean sameBytes(IncomingBytes incoming, String storageKey, String digest) {
         try {
-            return files.sameBytes(temp, storageKey);
+            Path incomingPath = incoming.contentAddress() == null
+                    ? incoming.temp()
+                    : files.blobPath(incoming.contentAddress());
+            return files.sameBytes(incomingPath, storageKey);
         } catch (java.io.IOException e) {
             log.error("CANGSHU|alert|digest={} 逐字节比较 IO 失败", digest, e);
             throw CatalogException.internalError("逐字节比较失败：" + e.getMessage());
