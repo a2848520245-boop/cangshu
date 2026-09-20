@@ -74,10 +74,15 @@ say "JDBC：${CANGSHU_DB_URL}"
 say "数据根：${DATA_ROOT}"
 say ""
 
-if [ ! -f "${JAR}" ]; then
-  say "产物不存在，先构建：mvn -B -ntp -Dmaven.repo.local=var/m2repo -DskipTests package"
+if [ "${CANGSHU_DEMO_SKIP_BUILD:-0}" = "1" ]; then
+  say "跳过构建（CANGSHU_DEMO_SKIP_BUILD=1）；使用现有产物：${JAR}"
+  [ -f "${JAR}" ] || { say "产物不存在：${JAR}"; exit 1; }
+else
+  # 默认总是重建：忽略「产物已存在」以免演示跑在陈旧 jar 上（产物不随源码自动更新）。
+  say "构建产物：mvn -B -ntp -Dmaven.repo.local=var/m2repo -DskipTests package"
   ( cd "${ROOT_DIR}" && mvn -B -ntp -Dmaven.repo.local=var/m2repo -DskipTests package ) >> "${SUMMARY}" 2>&1 || {
     say "构建失败，见 ${SUMMARY}"; exit 1; }
+  [ -f "${JAR}" ] || { say "构建未产出 ${JAR}"; exit 1; }
 fi
 
 say "启动 serve：java -jar <jar> --server.port=${PORT}"
