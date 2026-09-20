@@ -62,9 +62,8 @@ public class ResourceController {
 
     @PostMapping(value = "/resources", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UploadResponse> upload(@RequestParam("file") MultipartFile file) throws IOException {
-        if (file == null) {
-            throw CatalogException.invalidArgument("缺少必填的 multipart 字段 file");
-        }
+        // 字段缺失由 Spring 抛 MissingServletRequestPartException，经 ApiExceptionHandler 映射为 400；
+        // 这里只校验字段存在之后的取值（原始文件名）。
         String name = file.getOriginalFilename();
         if (name == null || name.isBlank()) {
             throw CatalogException.invalidArgument("上传文件缺少原始文件名");

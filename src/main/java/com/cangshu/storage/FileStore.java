@@ -160,15 +160,12 @@ public class FileStore {
         return tmpDir.relativize(temp).toString().replace('\\', '/');
     }
 
+    /** 临时文件所在目录（供核对与测试使用；生产主路径不调用）。 */
     public Path tmpDir() {
         return tmpDir;
     }
 
-    public Path dataRoot() {
-        return dataRoot;
-    }
-
-    /** 计算文件 SHA-256（核对/测试用；不参与上传主路径）。 */
+    /** 计算文件 SHA-256（供核对与测试使用；不参与上传主路径）。 */
     public String sha256Hex(Path file) throws IOException {
         MessageDigest digest = new Sha256Digester().create();
         try (InputStream in = Files.newInputStream(file)) {

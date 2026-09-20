@@ -35,7 +35,7 @@ public class CangshuProperties {
 
     private final Migration migration = new Migration();
 
-    /** {@code cangshu.upload.*}：单文件业务上限（业务值）；HTTP 层 multipart 限制在任务 3（上传）落地时与此同源。 */
+    /** {@code cangshu.upload.*}：单文件业务上限（业务值）；HTTP 层 multipart 限制由 {@link com.cangshu.api.MultipartLimitsConfig} 依据本值生成，与此同源。 */
     public static class Upload {
 
         private DataSize maxSize = DataSize.ofGigabytes(2);
@@ -59,7 +59,17 @@ public class CangshuProperties {
             return retention;
         }
 
+        /**
+         * 禁止负数（07-运行手册 §1「允许测试值 0，禁止负数」）。
+         *
+         * <p>在绑定层直接拒绝而不是静默截断：负保留期会让到期时刻早于软删时刻，属配置错误，
+         * 启动即失败比运行期语义混乱更可诊断。
+         */
         public void setRetention(Duration retention) {
+            if (retention != null && retention.isNegative()) {
+                throw new IllegalArgumentException(
+                        "cangshu.trash.retention 禁止负数（07-运行手册 §1）：" + retention);
+            }
             this.retention = retention;
         }
     }

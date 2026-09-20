@@ -254,6 +254,8 @@ class CatalogServiceTests {
         assertEquals(existingBytes.length, audit.getExistingSizeBytes());
         assertEquals(incomingBytes.length, audit.getIncomingSizeBytes());
         assertNotNull(audit.getIncomingStorageKey(), "incoming_storage_key 必有（DEC-I5）");
+        assertEquals(storageKey, audit.getExistingStorageKey(),
+                "既有位置键可唯一确定时如实登记（06 §4 该字段语义＝既有侧物理键）");
 
         verify(resourceMapper, never()).insert(any(ResourceEntity.class));
         assertEquals(blobBefore, files.sha256Hex(files.blobPath(storageKey)), "原字节不动");
@@ -439,7 +441,69 @@ class CatalogServiceTests {
         verify(contentMapper, never()).insert(any(ContentEntity.class));
     }
 
-    // ────────────────────────── 缺陷复现（已修复） ──────────────────────────
+    // ────────────────────────── 审计、临时文件与归一化（L-2／L-3／L-4／L-9） ──────────────────────────
+
+    @Test
+    @DisplayName("D 大小冲突且位置记录数异常：仍按 409 处理，审计既有键留空而不填伪键（L-9）")
+    void sizeMismatchWithLocationAnomalyKeepsConflictAndLeavesKeyNull() throws Exception {
+        byte[] existingBytes = "既有内容较长（位置异常场景）".getBytes(StandardCharsets.UTF_8);
+        FileStore.Staged seeded = files.stage(new ByteArrayInputStream(existingBytes), -1, new Sha256Digester());
+        String storageKey = storageKeyOf(seeded.digest());
+        files.moveInto(seeded.temp(), storageKey);
+
+        ContentEntity existing = existingContent(existingBytes.length);
+        existing.setDigest(seeded.digest());
+        givenExistingContentRows(List.of(existing));
+        givenLocations(storageKey, storageKeyOf("cd".repeat(32)));  // 2 条位置记录 → 异常
+
+        StagedUpload staged = staged("短".getBytes(StandardCharsets.UTF_8));
+        CatalogException exception = assertThrows(CatalogException.class,
+                () -> catalog.upload(staged, "来者.bin", "application/octet-stream"));
+
+        assertEquals("SIZE_MISMATCH", exception.reason(), "位置异常不得把冲突升级成 500");
+        ContentConflictEntity audit = capturedAudit();
+        assertNull(audit.getExistingStorageKey(), "位置记录数异常时留空，不填伪键（DEC-I5）");
+        assertEquals(existing.getId(), audit.getExistingContentId(), "既有内容 id 仍如实登记");
+    }
+
+    @Test
+    @DisplayName("非 CatalogException 的意外异常同样清理临时文件（L-4）")
+    void unexpectedExceptionStillCleansTempFile() throws Exception {
+        StagedUpload staged = staged(BYTES);
+        givenExistingContentRows(List.of());
+        org.mockito.Mockito.doThrow(new IllegalStateException("模拟意外故障"))
+                .when(contentMapper).insert(any(ContentEntity.class));
+
+        assertThrows(IllegalStateException.class,
+                () -> catalog.upload(staged, "意外.bin", "application/octet-stream"));
+
+        assertFalse(Files.exists(staged.temp()), "意外故障也不得残留临时文件");
+        assertEquals(0L, tempFileCount());
+    }
+
+    @Test
+    @DisplayName("B 分支返回的摘要与库内身份一致（小写归一化，L-2）")
+    void reuseBranchReturnsNormalizedDigest() throws Exception {
+        byte[] content = "B 分支摘要归一化".getBytes(StandardCharsets.UTF_8);
+        FileStore.Staged seeded = files.stage(new ByteArrayInputStream(content), -1, new Sha256Digester());
+        String storageKey = storageKeyOf(seeded.digest());
+        files.moveInto(seeded.temp(), storageKey);
+
+        ContentEntity existing = existingContent(content.length);
+        existing.setDigest(seeded.digest());
+        givenExistingContentRows(List.of(existing));
+        givenLocations(storageKey);
+
+        CatalogService.UploadResult result = catalog.upload(
+                staged(content), "复用.bin", "application/octet-stream");
+
+        assertTrue(result.deduplicated());
+        assertEquals(seeded.digest().toLowerCase(), result.digest(),
+                "B 分支返回的摘要必须与 A 分支同样经过小写归一化");
+        assertEquals(existing.getDigest(), result.digest(), "与库内身份摘要一致");
+    }
+
+    // ────────────────────────── 已修复缺陷的复现 ──────────────────────────
 
     @Test
     @DisplayName("G 并发抢先（插入被唯一约束挡下）：重试重验字节后转复用，不误报冲突、不写不实审计")

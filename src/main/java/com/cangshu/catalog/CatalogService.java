@@ -131,25 +131,30 @@ public class CatalogService {
         }
         try (handle) {
             IncomingBytes incoming = new IncomingBytes(staged.temp());
-            for (int attempt = 0; ; attempt++) {
-                try {
-                    return attemptLocked(staged, name, mimeType, digest, storageKey, incoming);
-                } catch (RetryableRaceException e) {
-                    if (attempt >= RETRY_BACKOFF_MILLIS.length) {
+            try {
+                for (int attempt = 0; ; attempt++) {
+                    try {
+                        UploadResult result = attemptLocked(staged, name, mimeType, digest, storageKey, incoming);
+                        // 事务已提交：此刻才清理临时文件——副作用不早于提交（A 分支临时文件已移动，
+                        // deleteIfExists 无害；F／B 分支显式回收临时字节）。
                         files.deleteTemp(staged.temp());
-                        throw CatalogException.internalError("并发重试次数耗尽，写入未完成（原行原字节未动）");
+                        return result;
+                    } catch (RetryableRaceException e) {
+                        if (attempt >= RETRY_BACKOFF_MILLIS.length) {
+                            throw CatalogException.internalError("并发重试次数耗尽，写入未完成（原行原字节未动）");
+                        }
+                        sleepBackoff(RETRY_BACKOFF_MILLIS[attempt]);
+                    } catch (DuplicateKeyException e) {
+                        if (attempt >= RETRY_BACKOFF_MILLIS.length) {
+                            throw CatalogException.internalError("内容唯一约束冲突重试次数耗尽（原行原字节未动）");
+                        }
+                        sleepBackoff(RETRY_BACKOFF_MILLIS[attempt]);
                     }
-                    sleepBackoff(RETRY_BACKOFF_MILLIS[attempt]);
-                } catch (DuplicateKeyException e) {
-                    if (attempt >= RETRY_BACKOFF_MILLIS.length) {
-                        files.deleteTemp(staged.temp());
-                        throw CatalogException.internalError("内容唯一约束冲突重试次数耗尽（原行原字节未动）");
-                    }
-                    sleepBackoff(RETRY_BACKOFF_MILLIS[attempt]);
-                } catch (CatalogException e) {
-                    files.deleteTemp(staged.temp());
-                    throw e;
                 }
+            } finally {
+                // 终态收尾：成功路径已在上方删除；其余异常（含非 CatalogException 的意外错误）在此兜底，
+                // 不留残留。循环内的 RetryableRaceException 已被消化，不会走到这里（重试需要临时文件）。
+                files.deleteTemp(staged.temp());
             }
         }
     }
@@ -179,7 +184,8 @@ public class CatalogService {
             String name, String mimeType, String digest, String storageKey, IncomingBytes incoming) {
         if (existing.getSizeBytes() != staged.sizeBytes()) {
             // D 大小冲突：不读取既有文件逐字节比较；写审计 → 409；原行原字节不动。
-            recordConflict(digest, existing, staged, null, "SIZE_MISMATCH");
+            // 既有位置键能唯一确定时如实登记（06 §4 该字段语义是「既有侧物理键」；异常数量时留空，不填伪键）。
+            recordConflict(digest, existing, staged, storageKeyOrNull(existing.getId()), "SIZE_MISMATCH");
             log.warn("CANGSHU|conflict|reason=SIZE_MISMATCH|digest={}|existing={}|incoming={}",
                     digest, existing.getSizeBytes(), staged.sizeBytes());
             throw CatalogException.conflict("SIZE_MISMATCH", "内容校验冲突：同摘要内容大小不一致");
@@ -197,7 +203,7 @@ public class CatalogService {
             throw CatalogException.conflict("BYTE_MISMATCH", "内容校验冲突：同摘要同大小但逐字节不一致");
         }
         // B 命中复用：不重写字节，只插资源行。
-        return insertResourceFor(staged, name, mimeType, existing.getId(), true);
+        return insertResourceFor(staged, name, mimeType, existing.getId(), digest, true);
     }
 
     /** 分支 F：库内无该摘要行而内容地址已有字节——字节相同幂等补齐索引行，不同写审计 409。 */
@@ -269,15 +275,13 @@ public class CatalogService {
         resource.setUpdatedAt(now);
         resourceMapper.insert(resource);
 
-        // A 路径临时文件已被移动（deleteIfExists 无害）；F 补齐路径显式清理临时字节。
-        files.deleteTemp(staged.temp());
         return new UploadResult(resourceId, contentId, name, mimeType, staged.sizeBytes(),
                 Algorithms.CANONICAL_SHA256, digest, deduplicated, now);
     }
 
     /** 分支 B：只插资源行，复用既有内容与字节。 */
     private UploadResult insertResourceFor(StagedUpload staged, String name, String mimeType,
-            UUID contentId, boolean deduplicated) {
+            UUID contentId, String digest, boolean deduplicated) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         UUID resourceId = UuidV7.generate();
         ResourceEntity resource = new ResourceEntity();
@@ -291,9 +295,9 @@ public class CatalogService {
         resource.setCreatedAt(now);
         resource.setUpdatedAt(now);
         resourceMapper.insert(resource);
-        files.deleteTemp(staged.temp());
+        // 临时文件清理由 upload 的终态收尾统一处理（副作用不早于提交）。
         return new UploadResult(resourceId, contentId, name, mimeType, staged.sizeBytes(),
-                Algorithms.CANONICAL_SHA256, staged.digest(), deduplicated, now);
+                Algorithms.CANONICAL_SHA256, digest, deduplicated, now);
     }
 
     /**
@@ -335,6 +339,18 @@ public class CatalogService {
             throw CatalogException.internalError("内容 " + contentId + " 的位置记录数异常：" + locations.size());
         }
         return locations.get(0).getStorageKey();
+    }
+
+    /**
+     * 既有内容的位置键，供冲突审计如实登记；位置记录数异常时返回 {@code null}。
+     *
+     * <p>审计字段允许为空（06 §4），但**不得填伪键**；此处不抛异常，避免把一次正常的
+     * 409 冲突因位置异常升级成 500（位置异常在本路径不是判定依据，只是登记信息）。
+     */
+    private String storageKeyOrNull(UUID contentId) {
+        List<LocationEntity> locations = locationMapper.selectList(
+                Wrappers.<LocationEntity>lambdaQuery().eq(LocationEntity::getContentId, contentId));
+        return locations.size() == 1 ? locations.get(0).getStorageKey() : null;
     }
 
     private void sleepBackoff(long millis) {

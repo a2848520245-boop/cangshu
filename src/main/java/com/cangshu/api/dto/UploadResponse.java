@@ -1,6 +1,7 @@
 package com.cangshu.api.dto;
 
 import com.cangshu.catalog.CatalogService;
+import com.cangshu.storage.Algorithms;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -34,7 +35,7 @@ public record UploadResponse(
                 result.name(),
                 result.sizeBytes(),
                 result.mimeType(),
-                new HashView("sha256", result.digest()),
+                new HashView(Algorithms.DISPLAY_SHA256, result.digest()),
                 List.of(),
                 "READY",
                 result.createdAt().withOffsetSameInstant(ZoneOffset.UTC),

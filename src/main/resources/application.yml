@@ -6,13 +6,11 @@ spring:
   application:
     name: cangshu
 
-  servlet:
-    multipart:
-      # HTTP 层 multipart 限制与 cangshu.upload.max-size 同源（07-运行手册 §1）：
-      # MultipartLimitsConfig 依据业务上限生成 MultipartConfigElement
-      # （请求上限＝文件上限＋协议开销余量，不把请求上限直接等同于文件字节上限）。
-      # 此处仅保留阈值：超过阈值的分片由 Tomcat 落磁盘，业务层再流式落数据根临时区。
-      file-size-threshold: 1MB
+  # 注意：multipart 上限不在本文件配置。api/MultipartLimitsConfig 提供了 MultipartConfigElement Bean，
+  # Spring Boot 的 MultipartAutoConfiguration 因此不再创建该 Bean，spring.servlet.multipart.* 的
+  # max-file-size / max-request-size / file-size-threshold 全部失效（只有 resolve-lazily 仍生效）。
+  # 上限的唯一来源＝cangshu.upload.max-size（见 MultipartLimitsConfig.FILE_SIZE_THRESHOLD 与
+  # REQUEST_OVERHEAD）；在此重复配置只会误导运维。
 
   datasource:
     # 开发轨默认（07-运行手册 §3：本机 PostgreSQL 17 服务，隔离 schema cangshu_m1）；

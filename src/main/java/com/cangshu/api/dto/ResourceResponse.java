@@ -1,6 +1,7 @@
 package com.cangshu.api.dto;
 
 import com.cangshu.search.ResourceQueryService;
+import com.cangshu.storage.Algorithms;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -39,7 +40,7 @@ public record ResourceResponse(
                 view.name(),
                 view.sizeBytes(),
                 view.mimeType(),
-                new UploadResponse.HashView("sha256", view.digest()),
+                new UploadResponse.HashView(Algorithms.DISPLAY_SHA256, view.digest()),
                 view.tags(),
                 view.status(),
                 view.createdAt(),
