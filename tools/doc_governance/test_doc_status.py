@@ -864,7 +864,8 @@ class TestLint(Base):
     def test_oversize_doc_fails(self):
         self.make_live_docs()
         self.write_tasks([self.task_row()])
-        (self.docs / "10-变更记录.md").write_text("x" * 20001, encoding="utf-8")
+        # 用无预算豁免的活文档验证默认上限（10-变更记录 自 2026-09-20 起为豁免项）
+        (self.docs / "11-术语索引.md").write_text("x" * 20001, encoding="utf-8")
         code, stdout, _ = self.run_lint()
         self.assertEqual(code, 1)
         self.assertIn("超过预算", stdout)
@@ -880,6 +881,25 @@ class TestLint(Base):
         self.assertEqual(code, 0, stdout)
         self.assertIn("[OK] ADR-0001-项目启动与技术栈裁决.md：25000 / 32000 bytes", stdout)
         self.assertNotIn("[FAIL] ADR-0001", stdout)
+
+    def test_changelog_within_relaxed_budget_prints_ok(self):
+        """10-变更记录 自 2026-09-20 起豁免到 32000：25000 字节应判 OK 而非超预算。"""
+        self.make_live_docs()
+        self.write_tasks([self.task_row()])
+        (self.docs / "10-变更记录.md").write_text("x" * 25000, encoding="utf-8")
+        code, stdout, _ = self.run_lint()
+        self.assertEqual(code, 0, stdout)
+        self.assertIn("[OK] 10-变更记录.md：25000 / 32000 bytes", stdout)
+        self.assertNotIn("[FAIL] 10-变更记录.md", stdout)
+
+    def test_changelog_above_relaxed_budget_fails(self):
+        """豁免是 32000 而非无限：超出仍须报超预算。"""
+        self.make_live_docs()
+        self.write_tasks([self.task_row()])
+        (self.docs / "10-变更记录.md").write_text("x" * 32001, encoding="utf-8")
+        code, stdout, _ = self.run_lint()
+        self.assertEqual(code, 1)
+        self.assertIn("10-变更记录.md 超过预算：32001 > 32000 bytes", stdout)
 
     def test_duplicate_block_id_fails(self):
         self.make_live_docs()
