@@ -16,3 +16,9 @@ files/
 var/
 *.mv.db
 *.trace.db
+
+# 交付态运行期数据（07-运行手册 §3 命名口径）：字节宿主目录与它的一次性副本。
+# 字节与 PG 卷分离，且都属运行期数据，不进版本控制；compose 挂载源见 docker-compose.yml。
+cangshu-blobs/
+cangshu-blobs-alt/
+cangshu-blobs-backup/

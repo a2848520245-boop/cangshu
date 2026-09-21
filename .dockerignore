@@ -1,0 +1,18 @@
+# 构建上下文瘦身：交付镜像只 COPY 一个 jar，其余一律不进上下文。
+# 注意：target/cangshu-0.1.0-SNAPSHOT.jar 必须**保留**（Dockerfile 要 COPY 它）。
+target/*
+!target/cangshu-0.1.0-SNAPSHOT.jar
+
+.git
+.gitignore
+.workbuddy
+var
+cangshu-blobs
+cangshu-blobs-*
+*.log
+scripts
+src
+tools
+db
+pom.xml
+README.md
