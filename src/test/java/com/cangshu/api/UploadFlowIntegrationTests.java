@@ -1,6 +1,7 @@
 package com.cangshu.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -276,6 +277,48 @@ class UploadFlowIntegrationTests {
                 "sha256", digest.substring(0, 2), digest.substring(2, 4), digest));
         assertEquals(HexFormat.of().formatHex(sha256Raw(content)), HexFormat.of().formatHex(sha256Raw(blob)),
                 "补齐不覆盖既有字节");
+    }
+
+    @Test
+    void reclaimedContentIsRevivedOverRealHttpAndRevivedMarkerStaysInternal() throws Exception {
+        // 分支 C 真实 HTTP 切片（任务 26）：已回收内容重新上传 → 重建字节＋重建位置行 → 201；
+        // 复活标记只留内部结果，不进响应体（DEC-I2）。
+        byte[] content = "任务26：真实 HTTP 复活既有内容".getBytes(StandardCharsets.UTF_8);
+        String digest = sha256Hex(content);
+        java.nio.file.Path blob = java.nio.file.Path.of("target/task3-test-data-root",
+                "sha256", digest.substring(0, 2), digest.substring(2, 4), digest);
+
+        HttpResponse<String> first = upload("首传.bin", "application/octet-stream", content);
+        assertEquals(201, first.statusCode());
+        String contentId = mapper.readTree(first.body()).get("contentId").asText();
+
+        // 模拟 GC 三段提交已完成：位置行删、字节删、内容置已回收；资源行硬删（保护引用归零）
+        jdbc.update("DELETE FROM cangshu_m1.resource");
+        jdbc.update("DELETE FROM cangshu_m1.location");
+        java.nio.file.Files.delete(blob);
+        jdbc.update("UPDATE cangshu_m1.content SET status = 'RECLAIMED' WHERE id = ?::uuid", contentId);
+
+        HttpResponse<String> revived = upload("复活.bin", "application/octet-stream", content);
+        assertEquals(201, revived.statusCode());
+        JsonNode body = mapper.readTree(revived.body());
+        assertEquals(contentId, body.get("contentId").asText(), "复活原内容行，不新建第二行");
+        assertFalse(body.get("deduplicated").asBoolean(), "重建物理字节 → deduplicated=false（DEC-I2）");
+        assertFalse(body.has("revived"), "DEC-I2：revived 不对外暴露");
+        assertTrue(java.nio.file.Files.isRegularFile(blob), "字节已重建");
+        assertEquals("READY", jdbc.queryForObject(
+                "SELECT status FROM cangshu_m1.content WHERE id = ?::uuid", String.class, contentId));
+        assertEquals(1, (int) jdbc.queryForObject(
+                "SELECT count(*) FROM cangshu_m1.location WHERE content_id = ?::uuid", Integer.class, contentId));
+        assertEquals(1, (int) jdbc.queryForObject("SELECT count(*) FROM cangshu_m1.content", Integer.class));
+
+        // 复活的价值在于真能读到字节：下载必须回 200 且内容逐字节相符（不是「只改了状态」）
+        HttpResponse<byte[]> download = http.send(
+                HttpRequest.newBuilder(URI.create(baseUrl() + "/api/resources/" + body.get("id").asText() + "/content"))
+                        .GET().build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200, download.statusCode());
+        assertEquals(HexFormat.of().formatHex(sha256Raw(content)),
+                HexFormat.of().formatHex(sha256Raw(download.body())), "复活后下载字节与上传内容一致");
     }
 
     @Test

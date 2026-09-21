@@ -544,4 +544,105 @@ class CatalogServiceTests {
                 "库内摘要必须小写 64 位十六进制");
         assertNotEquals("", content.getValue().getDigest());
     }
+
+    // ────────────────────────── 分支 C：复活复用（任务 26） ──────────────────────────
+
+    @Test
+    @DisplayName("C 复活（字节已缺）：重建字节＋重建位置行，再置就绪，且 revived 只留内部标记")
+    void reviveRebuildsMissingBytesAndLocationRow() throws Exception {
+        StagedUpload staged = staged(BYTES);
+        String storageKey = storageKeyOf(staged.digest());
+        ContentEntity existing = nonReadyContent(staged, "RECLAIMED");
+        givenExistingContentRows(List.of(existing));
+        givenLocations();
+
+        CatalogService.UploadResult result = catalog.upload(staged, "复活.bin", "application/octet-stream");
+
+        assertTrue(result.revived(), "命中非就绪行 → 复活（04 §4 分支 C）");
+        assertFalse(result.deduplicated(), "重建了物理字节 → 不得称作复用存储（DEC-I2）");
+        assertEquals(existing.getId(), result.contentId(), "复活原行");
+        assertTrue(Files.isRegularFile(files.blobPath(storageKey)), "字节已重建到内容地址");
+
+        ArgumentCaptor<ContentEntity> patch = ArgumentCaptor.forClass(ContentEntity.class);
+        verify(contentMapper, times(1)).updateById(patch.capture());
+        assertEquals("READY", patch.getValue().getStatus(), "置就绪");
+        verify(locationMapper, times(1)).insert(any(LocationEntity.class));
+        verify(resourceMapper, times(1)).insert(any(ResourceEntity.class));
+        verify(conflictMapper, never()).insert(any(ContentConflictEntity.class));
+        assertEquals(0L, tempFileCount(), "重建字节用移动，不留临时文件");
+    }
+
+    @Test
+    @DisplayName("C 复活（字节仍在）：逐字节校验通过即复用，不重写字节、不重复插位置行")
+    void reviveKeepsExistingBytesAndDoesNotDuplicateLocationRow() throws Exception {
+        StagedUpload staged = staged(BYTES);
+        String storageKey = storageKeyOf(staged.digest());
+        writeBlob(storageKey, BYTES);
+        ContentEntity existing = nonReadyContent(staged, "RECLAIM_PENDING");
+        givenExistingContentRows(List.of(existing));
+        givenLocations(storageKey);
+
+        CatalogService.UploadResult result = catalog.upload(staged, "复活.bin", "application/octet-stream");
+
+        assertTrue(result.revived());
+        assertTrue(result.deduplicated(), "字节未重建 → 本次未新增物理字节");
+        verify(locationMapper, never()).insert(any(LocationEntity.class));
+        verify(contentMapper, times(1)).updateById(any(ContentEntity.class));
+        assertEquals(0L, tempFileCount());
+    }
+
+    @Test
+    @DisplayName("C 复活（字节与内容身份不符）：409 BYTE_MISMATCH＋审计，原行原字节不动")
+    void reviveRefusesByteMismatch() throws Exception {
+        StagedUpload staged = staged(BYTES);
+        String storageKey = storageKeyOf(staged.digest());
+        byte[] corrupted = BYTES.clone();
+        corrupted[0] ^= 0x7F;
+        writeBlob(storageKey, corrupted);
+        givenExistingContentRows(List.of(nonReadyContent(staged, "RECLAIM_PENDING")));
+        givenLocations(storageKey);
+
+        CatalogException e = assertThrows(CatalogException.class,
+                () -> catalog.upload(staged, "复活.bin", "application/octet-stream"));
+
+        assertEquals(CatalogException.Code.CONTENT_CONFLICT, e.code());
+        assertEquals("BYTE_MISMATCH", e.reason());
+        assertEquals("BYTE_MISMATCH", capturedAudit().getReason());
+        verify(contentMapper, never()).updateById(any(ContentEntity.class));
+        verify(resourceMapper, never()).insert(any(ResourceEntity.class));
+        assertEquals(0L, tempFileCount());
+    }
+
+    @Test
+    @DisplayName("C 复活守卫：位置记录数异常或位置键与内容身份不符时拒止，不写任何行")
+    void reviveRejectsAnomalousLocationRows() throws Exception {
+        StagedUpload duplicated = staged(BYTES);
+        givenExistingContentRows(List.of(nonReadyContent(duplicated, "RECLAIMING")));
+        givenLocations(storageKeyOf(duplicated.digest()), storageKeyOf(duplicated.digest()));
+
+        CatalogException many = assertThrows(CatalogException.class,
+                () -> catalog.upload(duplicated, "位置重复.bin", "application/octet-stream"));
+        assertEquals(CatalogException.Code.INTERNAL_ERROR, many.code());
+
+        StagedUpload mismatched = staged(BYTES);
+        givenExistingContentRows(List.of(nonReadyContent(mismatched, "RECLAIMING")));
+        givenLocations(storageKeyOf("cd".repeat(32)));
+
+        CatalogException wrongKey = assertThrows(CatalogException.class,
+                () -> catalog.upload(mismatched, "位置不符.bin", "application/octet-stream"));
+        assertEquals(CatalogException.Code.INTERNAL_ERROR, wrongKey.code());
+
+        verify(contentMapper, never()).updateById(any(ContentEntity.class));
+        verify(locationMapper, never()).insert(any(LocationEntity.class));
+        verify(resourceMapper, never()).insert(any(ResourceEntity.class));
+        assertEquals(0L, tempFileCount(), "拒止路径不留临时文件");
+    }
+
+    /** 命中行处于非就绪态（分支 C 的前提）：身份三元组的摘要与本次入参一致。 */
+    private ContentEntity nonReadyContent(StagedUpload staged, String status) {
+        ContentEntity existing = existingContent(staged.sizeBytes());
+        existing.setDigest(staged.digest());
+        existing.setStatus(status);
+        return existing;
+    }
 }

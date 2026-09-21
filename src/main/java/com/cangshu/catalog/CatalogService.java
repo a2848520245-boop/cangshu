@@ -29,8 +29,8 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 上传写入协议（catalog 模块；04-架构与计划 §4 七分支，任务 3 范围＝A 新建／B 复用／D 大小冲突／
- * E 字节冲突／F 目标键被占／G 并发抢先；C 复活复用依赖内容生命周期状态，属后续任务）。
+ * 上传写入协议（catalog 模块；04-架构与计划 §4 七分支——A 新建／B 复用／C 复活复用／
+ * D 大小冲突／E 字节冲突／F 目标键被占／G 并发抢先，任务 3 与任务 26 合并后的完整面）。
  *
  * <p>前置顺序恒定：① 流式落临时文件并算摘要（ingest，锁外）→ ② 取分段锁 → ③ 锁内建立
  * REPEATABLE READ 事务快照（必须在取锁之后）→ ④ 按分支处理 → ⑤ 持锁至提交结束。
@@ -73,10 +73,23 @@ public class CatalogService {
         this.auditTxn.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
-    /** 上传结果：响应组装所需全部字段（对外不暴露 revived 等内部标记——I2）。 */
+    /**
+     * 上传结果：响应组装所需全部字段（对外不暴露 revived 等内部标记——I2）。
+     *
+     * @param deduplicated 本次**未新增物理字节**（04 §4 结果标记 {@code reused}）；复活重建字节时为
+     *                     {@code false}——复用的是内容身份，不是存储（DEC-I2）
+     * @param revived      命中行处于非就绪态并被复活（04 §4 分支 C）；**只留内部结果、审计与测试**，
+     *                     不进任何对外响应（DEC-I2）
+     */
     public record UploadResult(UUID resourceId, UUID contentId, String name, String mimeType,
             long sizeBytes, String canonicalAlgorithm, String digest, boolean deduplicated,
-            OffsetDateTime createdAt) {
+            boolean revived, OffsetDateTime createdAt) {
+
+        /** 同一结果打上复活标记（分支 C；DEC-I2 的内部标记）。 */
+        UploadResult asRevived() {
+            return new UploadResult(resourceId, contentId, name, mimeType, sizeBytes, canonicalAlgorithm,
+                    digest, deduplicated, true, createdAt);
+        }
     }
 
     /** 并发抢先／唯一约束挡下后的重试信号（内部控制流；G 分支，重试 2 次）。 */
@@ -179,7 +192,10 @@ public class CatalogService {
         });
     }
 
-    /** 分支 B／D／E：命中既有内容行——先比大小（D），再逐字节（E），两步都在移动之前。 */
+    /**
+     * 分支 C／B／D／E：命中既有内容行——先比大小（D），非就绪态走复活（C），
+     * 就绪态再逐字节（E），两步都在移动之前。
+     */
     private UploadResult resolveWithExistingContent(ContentEntity existing, StagedUpload staged,
             String name, String mimeType, String digest, String storageKey, IncomingBytes incoming) {
         if (existing.getSizeBytes() != staged.sizeBytes()) {
@@ -189,6 +205,10 @@ public class CatalogService {
             log.warn("CANGSHU|conflict|reason=SIZE_MISMATCH|digest={}|existing={}|incoming={}",
                     digest, existing.getSizeBytes(), staged.sizeBytes());
             throw CatalogException.conflict("SIZE_MISMATCH", "内容校验冲突：同摘要内容大小不一致");
+        }
+        if (!CONTENT_STATUS_READY.equals(existing.getStatus())) {
+            // C 复活复用：命中行处于非就绪态（含已回收／待回收／回收中，04 §4 分支 C）。
+            return revive(existing, staged, name, mimeType, digest, storageKey, incoming);
         }
         String existingKey = soleStorageKeyOf(existing.getId());
         if (!files.blobExists(existingKey)) {
@@ -204,6 +224,80 @@ public class CatalogService {
         }
         // B 命中复用：不重写字节，只插资源行。
         return insertResourceFor(staged, name, mimeType, existing.getId(), digest, true);
+    }
+
+    /**
+     * 分支 C：复活复用（任务 26；04-架构与计划 §4 分支 C、§5 末段；06-数据契约 §7 末两行）。
+     *
+     * <p>命中内容行的状态非就绪。契约要求「**先按字节存在／缺失完成校验**；字节缺失则重建字节、
+     * 重建 location 行，再置就绪；**不得只改状态**」。这不是形式要求：GC 段一（04 §5 ③）已经把
+     * location 行删掉，只把状态翻回就绪会留下「内容就绪、无位置、无字节」的行，下载与后续 GC
+     * 都会错判。段二被杀时字节可能已删或未删（04 §5 中断续接），两条路径都必须幂等接上。
+     *
+     * <p>复活标记只留内部结果（{@link UploadResult#revived()}），不对外暴露；重建字节时
+     * {@code deduplicated=false}——复用内容身份不等于复用存储（DEC-I2）。
+     */
+    private UploadResult revive(ContentEntity existing, StagedUpload staged, String name, String mimeType,
+            String digest, String storageKey, IncomingBytes incoming) {
+        List<LocationEntity> locations = locationMapper.selectList(
+                Wrappers.<LocationEntity>lambdaQuery().eq(LocationEntity::getContentId, existing.getId()));
+        if (locations.size() > 1) {
+            log.error("CANGSHU|alert|contentId={} 复活路径位置记录数异常：{}",
+                    existing.getId(), locations.size());
+            throw CatalogException.internalError("内容 " + existing.getId() + " 的位置记录数异常："
+                    + locations.size());
+        }
+        String placedKey = locations.isEmpty() ? null : locations.get(0).getStorageKey();
+        if (placedKey != null && !placedKey.equals(storageKey)) {
+            // 位置行的键与内容身份（算法＋摘要）推出的键不符：位置已不可信，拒绝复活并告警。
+            log.error("CANGSHU|alert|contentId={} 复活路径位置键与内容身份不符：{} != {}",
+                    existing.getId(), placedKey, storageKey);
+            throw CatalogException.internalError("内容 " + existing.getId() + " 的位置键与内容身份不符，拒绝复活");
+        }
+
+        boolean rebuiltBytes = false;
+        if (files.blobExists(storageKey)) {
+            // 字节仍在（待回收，或回收中段二尚未执行）：存在不等于一致，仍须逐字节比较（DEC-T4）。
+            if (!sameBytes(incoming, storageKey, digest)) {
+                recordConflict(digest, existing, staged, storageKey, "BYTE_MISMATCH");
+                log.warn("CANGSHU|conflict|reason=BYTE_MISMATCH|digest={}|branch=C(revive)", digest);
+                throw CatalogException.conflict("BYTE_MISMATCH", "内容校验冲突：同摘要同大小但逐字节不一致");
+            }
+        } else {
+            // 字节已缺（已回收，或回收中段二已删）：重建字节——仍走原子移动、绝不覆盖（04 §4）。
+            FileStore.MoveOutcome outcome;
+            try {
+                outcome = files.moveInto(incoming.temp(), storageKey);
+            } catch (java.io.IOException e) {
+                throw CatalogException.internalError("复活重建字节失败：" + e.getMessage());
+            }
+            if (outcome == FileStore.MoveOutcome.TARGET_EXISTS) {
+                // 竞态：取锁后被别的持有者放上了字节。新事务重验后按「字节在」的路径接上。
+                throw new RetryableRaceException();
+            }
+            incoming.markMovedTo(storageKey);
+            rebuiltBytes = true;
+        }
+
+        if (placedKey == null) {
+            // 重建 location 行：位置行与字节同为「已回收」的删除对象，复活必须把两者都补齐
+            // （06 §8 外键顺序：先有位置行，才谈得上内容就绪）。
+            LocationEntity location = new LocationEntity();
+            location.setId(UuidV7.generate());
+            location.setContentId(existing.getId());
+            location.setStorageBackend(STORAGE_BACKEND);
+            location.setStorageKey(storageKey);
+            locationMapper.insert(location);
+        }
+
+        ContentEntity patch = new ContentEntity();
+        patch.setId(existing.getId());
+        patch.setStatus(CONTENT_STATUS_READY);
+        contentMapper.updateById(patch);
+
+        log.info("CANGSHU|revive|contentId={}|from={}|bytesRebuilt={}",
+                existing.getId(), existing.getStatus(), rebuiltBytes);
+        return insertResourceFor(staged, name, mimeType, existing.getId(), digest, !rebuiltBytes).asRevived();
     }
 
     /** 分支 F：库内无该摘要行而内容地址已有字节——字节相同幂等补齐索引行，不同写审计 409。 */
@@ -276,7 +370,7 @@ public class CatalogService {
         resourceMapper.insert(resource);
 
         return new UploadResult(resourceId, contentId, name, mimeType, staged.sizeBytes(),
-                Algorithms.CANONICAL_SHA256, digest, deduplicated, now);
+                Algorithms.CANONICAL_SHA256, digest, deduplicated, false, now);
     }
 
     /** 分支 B：只插资源行，复用既有内容与字节。 */
@@ -297,7 +391,7 @@ public class CatalogService {
         resourceMapper.insert(resource);
         // 临时文件清理由 upload 的终态收尾统一处理（副作用不早于提交）。
         return new UploadResult(resourceId, contentId, name, mimeType, staged.sizeBytes(),
-                Algorithms.CANONICAL_SHA256, digest, deduplicated, now);
+                Algorithms.CANONICAL_SHA256, digest, deduplicated, false, now);
     }
 
     /**
