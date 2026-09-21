@@ -64,7 +64,7 @@ class CangshuPropertiesTests {
 
         ResourceQueryService.ResourceView view = new ResourceQueryService.ResourceView(
                 id, "样本.bin", 3L, "application/octet-stream", List.of(), "READY", now,
-                UUID.randomUUID(), Algorithms.CANONICAL_SHA256, "ab".repeat(32));
+                UUID.randomUUID(), Algorithms.CANONICAL_SHA256, "ab".repeat(32), null, null);
         ResourceResponse listItem = ResourceResponse.listItem(view);
         assertEquals(Algorithms.DISPLAY_SHA256, listItem.hash().algorithm());
         assertEquals(Algorithms.DISPLAY_SHA256, ResourceResponse.detail(view).hash().algorithm());

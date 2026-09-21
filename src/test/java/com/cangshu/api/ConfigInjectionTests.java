@@ -11,12 +11,19 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** 配置注入可复现：同一端点在配置被覆盖后，生效值随配置变化。 */
+/**
+ * 配置注入可复现：同一端点在配置被覆盖后，生效值随配置变化。
+ *
+ * <p>任务 28 起上下文加载会连库跑启动对账（04 §8 步骤 3），故一并显式指向测试库。
+ */
 @SpringBootTest(properties = {
         "cangshu.data-root=target/test-data-root",
         "cangshu.upload.max-size=1GB",
         "cangshu.trash.retention=0",
-        "cangshu.migration.dir=target/test-migration"
+        "cangshu.migration.dir=target/test-migration",
+        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
+        "spring.datasource.username=postgres",
+        "spring.datasource.password=postgres"
 })
 @AutoConfigureMockMvc
 class ConfigInjectionTests {

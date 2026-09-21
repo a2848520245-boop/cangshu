@@ -159,8 +159,18 @@ hit 404 "DELETE /api/resources/{未知 UUID}（已硬删／不存在 → 404）"
   -X DELETE "${BASE}/api/resources/00000000-0000-7000-8000-000000000000"
 
 say ""
-say "-- 未实现端点（任务 28；此处只演示当前真实响应，不得当作已具备）--"
-hit 400 "GET /api/resources/trash（任务 28 未实现 → 路径落在 {id} 上，非 UUID）" "${BASE}/api/resources/trash"
+say "-- 八端点 3.6–3.8（任务 28 已实现：回收站列表／还原／清空）--"
+hit 200 "GET /api/resources/trash（回收站列表）" "${BASE}/api/resources/trash"
+hit 200 "GET /api/resources/trash?size=200（分页上限内）" "${BASE}/api/resources/trash?size=200"
+hit 400 "GET /api/resources/trash?size=201（§3.6 上限）" "${BASE}/api/resources/trash?size=201"
+hit 400 "DELETE /api/resources/trash（缺显式确认 → 不删任何内容）" -X DELETE "${BASE}/api/resources/trash"
+if [ -n "${RES_ID}" ]; then
+  hit 200 "POST /api/resources/{id}/restore（把 3.5 软删的资源还原）" -X POST "${BASE}/api/resources/${RES_ID}/restore"
+  hit 200 "GET /api/resources/{id}（还原后回到详情可见）" "${BASE}/api/resources/${RES_ID}"
+else
+  say "  [SKIP] 回收站三端点：上传未取得资源 ID"
+fi
+hit 200 "DELETE /api/resources/trash?confirm=true（清空回收站）" -X DELETE "${BASE}/api/resources/trash?confirm=true"
 
 say ""
 say "== 汇总：通过 ${PASS} ｜ 不符 ${FAIL} =="
@@ -169,4 +179,4 @@ if [ "${FAIL}" -ne 0 ]; then
   say "结论：有端点实际状态与预期不符，需排查（见上方 [FAIL]）。"
   exit 1
 fi
-say "结论：已实现端点的行为与 05-接口契约 §3.1–§3.5 及负例口径一致；3.6–3.8 未实现（如实标注）。"
+say "结论：八端点 3.1–3.8 的真实 HTTP 行为与 05-接口契约及负例口径一致（含 3.5–3.8 的回收站闭环）。"

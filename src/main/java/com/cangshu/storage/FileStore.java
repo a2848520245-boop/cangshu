@@ -88,6 +88,15 @@ public class FileStore {
                 && Files.isRegularFile(dataRoot.resolve(storageKey));
     }
 
+    /**
+     * 存储键形状是否合法（{@code <命名空间>/<两位>/<两位>/<64位摘要>}）。
+     * 供对账等**读库取键**的路径先判形状：库里的键可能来自历史版本或被人工改坏，
+     * 那种情况是要报告的数据异常，不是该抛异常中断作业的理由。
+     */
+    public boolean isWellFormedKey(String storageKey) {
+        return storageKey != null && STORAGE_KEY_PATTERN.matcher(storageKey).matches();
+    }
+
     /** 内容字节大小（下载校验与 Content-Length 用）；文件缺失抛 {@link NoSuchFileException}。 */
     public long blobSize(String storageKey) throws IOException {
         return Files.size(blobPath(storageKey));
@@ -155,6 +164,16 @@ public class FileStore {
         }
     }
 
+    /**
+     * 幂等删除内容地址上的字节（GC 段二，04 §5 ③）：**文件已缺即视为成功**，不抛异常——
+     * 段二被杀在删字节前／后，下次重扫的两种情形都必须幂等通过。
+     *
+     * <p>只删目标键本身；不递归、不清理空目录（空目录不占空间，也不参与任何判定）。
+     */
+    public void deleteBlob(String storageKey) throws IOException {
+        Files.deleteIfExists(blobPath(storageKey));
+    }
+
     /** 临时文件的相对临时键（冲突审计 incoming_storage_key 的「临时键」口径，06 §4）。 */
     public String tempKey(Path temp) {
         return tmpDir.relativize(temp).toString().replace('\\', '/');
@@ -163,6 +182,11 @@ public class FileStore {
     /** 临时文件所在目录（供核对与测试使用；生产主路径不调用）。 */
     public Path tmpDir() {
         return tmpDir;
+    }
+
+    /** 数据根（供对账扫描内容地址与临时区使用；业务层不解析绝对路径）。 */
+    public Path dataRoot() {
+        return dataRoot;
     }
 
     /** 计算文件 SHA-256（供核对与测试使用；不参与上传主路径）。 */

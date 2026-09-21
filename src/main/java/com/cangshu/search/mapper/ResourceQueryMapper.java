@@ -65,4 +65,30 @@ public interface ResourceQueryMapper {
               AND r.status <> 'DELETED'
             """)
     ResourceSummaryRow findActiveById(@Param("id") UUID id);
+
+    /**
+     * 回收站列表（05-接口契约 §3.6，任务 28）：**只返回回收站中（已软删、尚未到期）的资源**。
+     * 过滤条件走 {@code idx_resource_expire_at}；排序与普通列表一致（{@code id} DESC）。
+     * 另带 {@code deleted_at} / {@code expire_at} 两列——契约 §1 规定这两个字段仅回收站列表项携带。
+     */
+    @Select("""
+            SELECT r.id, r.name, r.size_bytes, r.mime_type, r.tags, r.status, r.created_at,
+                   r.deleted_at, r.expire_at, r.content_id, c.hash_algorithm, c.digest
+            FROM cangshu_m1.resource r
+            JOIN cangshu_m1.content c ON c.id = r.content_id
+            WHERE r.status = 'DELETED'
+              AND r.expire_at > now()
+            ORDER BY r.id DESC
+            LIMIT #{limit} OFFSET #{offset}
+            """)
+    List<ResourceSummaryRow> searchTrash(@Param("limit") int limit, @Param("offset") long offset);
+
+    /** 回收站总数（与 {@link #searchTrash} 同谓词，供分页信封的 {@code total}）。 */
+    @Select("""
+            SELECT count(*)
+            FROM cangshu_m1.resource r
+            WHERE r.status = 'DELETED'
+              AND r.expire_at > now()
+            """)
+    long countTrash();
 }

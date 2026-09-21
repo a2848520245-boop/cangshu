@@ -30,10 +30,13 @@ public class ResourceQueryService {
         this.mapper = mapper;
     }
 
-    /** 资源读视图：resource 行 ＋ 内容身份（算法规范值与摘要）＋ contentId（引用关系展示）。 */
+    /**
+     * 资源读视图：resource 行 ＋ 内容身份（算法规范值与摘要）＋ contentId（引用关系展示）。
+     * {@code deletedAt}／{@code expireAt} 仅回收站列表填充（05-接口契约 §1），其余路径为 {@code null}。
+     */
     public record ResourceView(UUID id, String name, long sizeBytes, String mimeType,
             List<String> tags, String status, OffsetDateTime createdAt, UUID contentId,
-            String hashAlgorithm, String digest) {
+            String hashAlgorithm, String digest, OffsetDateTime deletedAt, OffsetDateTime expireAt) {
     }
 
     /** 列表分页结果（契约 §3.2 信封形状由 api 层组装）。 */
@@ -62,13 +65,26 @@ public class ResourceQueryService {
                 .map(ResourceQueryService::toView);
     }
 
+    /**
+     * 回收站列表（契约 §3.6，任务 28）：只返回已软删且**尚未到期**的资源，另带两个时间戳。
+     * 分页参数由 api 层校验与设限（上限 200，超出即 400，口径同 §3.2）。
+     */
+    public ResourcePage trash(int page, int size) {
+        long offset = (long) (page - 1) * size;
+        List<ResourceView> items = mapper.searchTrash(size, offset).stream()
+                .map(ResourceQueryService::toView)
+                .toList();
+        return new ResourcePage(items, mapper.countTrash(), page, size);
+    }
+
     private static ResourceView toView(ResourceSummaryRow row) {
-        OffsetDateTime createdAt = row.getCreatedAt() == null
-                ? null
-                : row.getCreatedAt().withOffsetSameInstant(ZoneOffset.UTC);
         return new ResourceView(row.getId(), row.getName(), row.getSizeBytes(), row.getMimeType(),
-                parseTags(row.getTags()), row.getStatus(), createdAt, row.getContentId(),
-                row.getHashAlgorithm(), row.getDigest());
+                parseTags(row.getTags()), row.getStatus(), utc(row.getCreatedAt()), row.getContentId(),
+                row.getHashAlgorithm(), row.getDigest(), utc(row.getDeletedAt()), utc(row.getExpireAt()));
+    }
+
+    private static OffsetDateTime utc(OffsetDateTime value) {
+        return value == null ? null : value.withOffsetSameInstant(ZoneOffset.UTC);
     }
 
     /** tags jsonb 文本 → 字符串数组（M1 简化结构）；畸形 JSON 属数据损坏，显式失败不静默。 */

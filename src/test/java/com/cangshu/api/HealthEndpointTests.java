@@ -10,8 +10,17 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** 健康检查（Actuator）与最小接口 /api/health 的默认配置行为。 */
-@SpringBootTest
+/**
+ * 健康检查（Actuator）与最小接口 /api/health 的默认配置行为。
+ *
+ * <p>任务 28 起上下文加载会连库跑启动对账（04 §8 步骤 3），故显式指向测试库；
+ * 本用例只断言健康与配置回显的形态，不依赖库内数据。
+ */
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
+        "spring.datasource.username=postgres",
+        "spring.datasource.password=postgres"
+})
 @AutoConfigureMockMvc
 class HealthEndpointTests {
 

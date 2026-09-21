@@ -16,6 +16,8 @@ public class ResourceSummaryRow {
     private String tags;
     private String status;
     private OffsetDateTime createdAt;
+    private OffsetDateTime deletedAt;
+    private OffsetDateTime expireAt;
     private UUID contentId;
     private String hashAlgorithm;
     private String digest;
@@ -74,6 +76,24 @@ public class ResourceSummaryRow {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    /** 回收站专用（05 §1：仅回收站列表项另带）；非回收站行天然为 null。 */
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    /** 回收站专用（同上）。 */
+    public OffsetDateTime getExpireAt() {
+        return expireAt;
+    }
+
+    public void setExpireAt(OffsetDateTime expireAt) {
+        this.expireAt = expireAt;
     }
 
     public UUID getContentId() {

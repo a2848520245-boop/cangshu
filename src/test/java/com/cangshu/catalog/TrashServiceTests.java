@@ -16,10 +16,13 @@ import static org.mockito.Mockito.when;
 import com.cangshu.catalog.entity.ContentEntity;
 import com.cangshu.catalog.entity.ResourceEntity;
 import com.cangshu.catalog.mapper.ContentMapper;
+import com.cangshu.catalog.mapper.LocationMapper;
 import com.cangshu.catalog.mapper.ResourceMapper;
 import com.cangshu.common.UuidV7;
 import com.cangshu.config.CangshuProperties;
+import com.cangshu.storage.FileStore;
 import com.cangshu.storage.SegmentLockManager;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -27,6 +30,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 /**
@@ -40,18 +44,28 @@ class TrashServiceTests {
 
     private static final Duration SEVEN_DAYS = Duration.ofDays(7);
 
+    @TempDir
+    Path tempDir;
+
     private ResourceMapper resourceMapper;
     private ContentMapper contentMapper;
+    private LocationMapper locationMapper;
+    private ProtectionReferenceService references;
+    private FileStore files;
     private CangshuProperties properties;
     private TrashService trash;
 
     @BeforeEach
     void setUp() {
         properties = new CangshuProperties();
+        properties.setDataRoot(tempDir.resolve("data-root").toString());
+        files = new FileStore(properties);
         resourceMapper = mock(ResourceMapper.class);
         contentMapper = mock(ContentMapper.class);
-        trash = new TrashService(new SegmentLockManager(), resourceMapper, contentMapper, properties,
-                new CatalogServiceTests.PassthroughTransactionManager());
+        locationMapper = mock(LocationMapper.class);
+        references = mock(ProtectionReferenceService.class);
+        trash = new TrashService(new SegmentLockManager(), resourceMapper, contentMapper, locationMapper,
+                files, references, properties, new CatalogServiceTests.PassthroughTransactionManager());
     }
 
     // ────────────────────────── 软删正例 ──────────────────────────

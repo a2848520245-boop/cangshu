@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -53,6 +54,46 @@ class ResourceQueryServiceTests {
             this.detailId = id;
             return detailRow;
         }
+
+        @Override
+        public List<ResourceSummaryRow> searchTrash(int limit, long offset) {
+            this.limit = limit;
+            this.offset = offset;
+            return trashRows;
+        }
+
+        @Override
+        public long countTrash() {
+            return trashTotal;
+        }
+
+        List<ResourceSummaryRow> trashRows = List.of();
+        long trashTotal;
+    }
+
+    @Test
+    @DisplayName("回收站列表（§3.6）：走回收站专用查询、分页信封与普通列表同形、两个时间戳随行返回")
+    void trashPageUsesTrashQueriesAndCarriesTimestamps() {
+        StubMapper mapper = new StubMapper();
+        ResourceSummaryRow trashRow = row("[]", "SHA-256");
+        trashRow.setStatus("DELETED");
+        trashRow.setDeletedAt(OffsetDateTime.of(2026, 9, 22, 8, 0, 0, 0, ZoneOffset.ofHours(8)));
+        trashRow.setExpireAt(OffsetDateTime.of(2026, 9, 29, 8, 0, 0, 0, ZoneOffset.ofHours(8)));
+        mapper.trashRows = List.of(trashRow);
+        mapper.trashTotal = 3;
+
+        ResourcePage page = new ResourceQueryService(mapper).trash(2, 10);
+
+        assertEquals(1, page.items().size());
+        assertEquals(3, page.total(), "total 走回收站专用计数");
+        assertEquals(2, page.page());
+        assertEquals(10, page.size());
+        assertEquals(10, mapper.limit);
+        assertEquals(10L, mapper.offset, "第 2 页 offset＝(page-1)×size");
+        ResourceView view = page.items().get(0);
+        assertEquals("DELETED", view.status());
+        assertEquals(ZoneOffset.UTC, view.deletedAt().getOffset(), "时间一律归一化为 UTC（契约总则）");
+        assertEquals(ZoneOffset.UTC, view.expireAt().getOffset());
     }
 
     private static ResourceSummaryRow row(String tagsJson, String hashAlgorithm) {
