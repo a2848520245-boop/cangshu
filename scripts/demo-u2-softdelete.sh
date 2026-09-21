@@ -16,7 +16,8 @@
 #   ④ 回收站行**计入保护引用计数**（06 §8）；
 #   ⑤ 回收站资源对普通列表／详情／下载三处都不可见；
 #   ⑥ 重复软删幂等：仍 204，且首次软删时刻与到期时刻都不被刷新；
-#   ⑦ 负例：未知 UUID／已硬删 → 404 RESOURCE_NOT_FOUND；非 UUID → 400 INVALID_ARGUMENT。
+#   ⑦ 负例：未知 UUID／已硬删 → 404 RESOURCE_NOT_FOUND；非 UUID → 400 INVALID_ARGUMENT；
+#   ⑧ 文件树快照（ACC-G5 的证据形态之一）：软删前后、以及硬删行后，内容地址上的字节清单完全一致。
 #
 # 产出：逐项请求／SQL 观测与结论表。退出码：0＝全部符合预期；1＝有项不符（自检失败）。
 # 说明：本脚本是「演示与交付」材料，**不是** 08-验收规范 §2 的验收证据本身。
@@ -78,6 +79,17 @@ json_str() { sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p" "$2" | head -1; }
 # q <sql>：结构化取单值（-tA 去表头与对齐，去掉空白）
 q() { "${PSQL}" -h 127.0.0.1 -U "${CANGSHU_DB_USER}" -d "${DB}" -tAc "$1" 2>/dev/null | tr -d '[:space:]'; }
 blob_path() { printf '%s/sha256/%s/%s/%s' "${DATA_ROOT}" "${1:0:2}" "${1:2:2}" "${1}"; }
+
+# 文件树快照（ACC-G5 的证据形态之一）：内容地址上的相对键清单，排除临时区（临时文件属上传期现象）
+filetree_snapshot() { # <名称> → 写出并回显路径
+  local out="${LOG_DIR}/filetree-$1.txt"
+  find "${DATA_ROOT}" -type f -not -path '*/tmp/*' 2>/dev/null \
+    | sed "s|^${DATA_ROOT}/||" | sort > "${out}"
+  printf '%s' "${out}"
+}
+same_filetree() { # <快照1> <快照2>
+  if diff -q "$1" "$2" >/dev/null 2>&1; then printf 'same'; else printf 'different'; fi
+}
 
 cleanup() {
   if [ -n "${SERVER_PID:-}" ] && kill -0 "${SERVER_PID}" 2>/dev/null; then
@@ -154,6 +166,7 @@ RES_B="$(json_str id "${LAST_BODY}")"
 say "  A=${RES_A}（待删）  B=${RES_B}（保留）  contentId=${CONTENT_ID}"
 check "$(q "SELECT count(*) FROM cangshu_m1.resource WHERE content_id = '${CONTENT_ID}'")" "2" "保护引用数（软删前）"
 check "$(q "SELECT status FROM cangshu_m1.content WHERE id = '${CONTENT_ID}'")" "READY" "内容态（软删前）"
+TREE_BEFORE="$(filetree_snapshot before-softdelete)"
 
 say ""
 say "-- ② DELETE A → 204：写 deletedAt／expireAt 进回收站（无响应体）--"
@@ -200,12 +213,18 @@ hit 204 "DELETE /api/resources/{B}" -X DELETE "${BASE}/api/resources/${RES_B}"
 check "$(q "SELECT count(*) FROM cangshu_m1.resource WHERE content_id = '${CONTENT_ID}'")" "2" "保护引用数仍为 2（都在回收站里）"
 check "$(q "SELECT status FROM cangshu_m1.content WHERE id = '${CONTENT_ID}'")" "READY" "内容仍就绪"
 check "$([ -f "${BLOB}" ] && echo yes || echo no)" "yes" "字节仍在"
+TREE_AFTER="$(filetree_snapshot after-softdelete)"
+check "$(same_filetree "${TREE_BEFORE}" "${TREE_AFTER}")" "same" \
+  "文件树快照：两条资源都软删后，内容地址上的字节清单与软删前完全一致"
 
 say ""
 say "-- ⑦ 归零语义的触发点（硬删／到期／清空属任务 28，本轮不含端点）--"
 "${PSQL}" -h 127.0.0.1 -U "${CANGSHU_DB_USER}" -d "${DB}" -q \
   -c "DELETE FROM cangshu_m1.resource WHERE content_id='${CONTENT_ID}'" >> "${SUMMARY}" 2>&1
 check "$(q "SELECT count(*) FROM cangshu_m1.resource WHERE content_id = '${CONTENT_ID}'")" "0" "保护引用数（硬删行后）＝0"
+TREE_AFTER_HARD_DELETE="$(filetree_snapshot after-harddelete-rows)"
+check "$(same_filetree "${TREE_AFTER}" "${TREE_AFTER_HARD_DELETE}")" "same" \
+  "文件树快照：删掉最后一行（引用归零）也不删字节——字节只由 GC 删（04 §5 ③）"
 say "  说明：引用归零后置 RECLAIM_PENDING 的跃迁由 ProtectionReferenceService 在同锁事务内完成（任务 26 已落地语义，"
 say "        挂载点为任务 28 的硬删／清空路径）；本演示不代替该端到端路径，任务 28 完成后须补。"
 
