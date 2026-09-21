@@ -40,6 +40,11 @@ export CANGSHU_DB_URL="${CANGSHU_DB_URL:-jdbc:postgresql://127.0.0.1:5432/${DB}?
 export CANGSHU_DB_USER="${CANGSHU_DB_USER:-postgres}"
 
 rm -rf "${LOG_DIR}"
+# 数据根每次重建（仅默认值，避免误删用户显式指定的目录），否则前次运行的字节会残留下来，
+# 污染 ACC-G5 的文件树快照——快照本该是「本次上传的那一份内容」的干净清单。
+if [ -z "${CANGSHU_U2_DEMO_DATA_ROOT:-}" ]; then
+  rm -rf "${DATA_ROOT}"
+fi
 mkdir -p "${LOG_DIR}" "${DATA_ROOT}"
 PASS=0
 FAIL=0
