@@ -58,7 +58,7 @@ class ResourceControllerContentTests {
         queries = mock(ResourceQueryService.class);
         mockMvc = MockMvcBuilders.standaloneSetup(new ResourceController(
                         mock(UploadIngestService.class), mock(CatalogService.class),
-                        queries, downloads))
+                        queries, downloads, mock(com.cangshu.catalog.TrashService.class)))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
     }

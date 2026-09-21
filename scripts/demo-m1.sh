@@ -13,7 +13,7 @@
 #     db/migration/V1__init.sql 与 V2__search_indexes.sql（各带 -v script_sha256=<脚本SHA-256>）。
 #     默认库名 cangshu_m1demo，可用 CANGSHU_DB_URL / CANGSHU_DB_USER / CANGSHU_DB_PASSWORD 覆盖。
 #
-# 产出：逐端点请求与响应状态；**未实现端点会显式标注**（属任务 6／28），不得当作已具备。
+# 产出：逐端点请求与响应状态；**未实现端点会显式标注**（属任务 28），不得当作已具备。
 # 退出码：0＝全部符合预期；1＝serve 未就绪或有端点实际状态与预期不符（自检失败）。
 #
 # 说明：本脚本是「演示与交付」材料，**不是** 08-验收规范 §2 的验收证据本身；
@@ -147,11 +147,19 @@ hit 400 "POST /api/resources（application/json，媒体类型不受支持）" \
   -X POST -H 'Content-Type: application/json' -d '{}' "${BASE}/api/resources"
 
 say ""
-say "-- 未实现端点（任务 6／28；此处只演示当前真实响应，不得当作已具备）--"
+say "-- 八端点 3.5（任务 6 已实现：软删 204，资源进回收站）--"
 if [ -n "${RES_ID}" ]; then
-  hit 400 "DELETE /api/resources/{id}（任务 6 未实现 → 400，DEC-I10 不新增 405）" \
-    -X DELETE "${BASE}/api/resources/${RES_ID}"
+  hit 204 "DELETE /api/resources/{id} → 204 软删（写 deletedAt／expireAt）" -X DELETE "${BASE}/api/resources/${RES_ID}"
+  hit 404 "GET /api/resources/{id}（软删后对普通详情不可见）" "${BASE}/api/resources/${RES_ID}"
+  hit 204 "DELETE /api/resources/{id}（重复软删 → 幂等 204，不刷新到期时刻）" -X DELETE "${BASE}/api/resources/${RES_ID}"
+else
+  say "  [SKIP] 软删：上传未取得资源 ID"
 fi
+hit 404 "DELETE /api/resources/{未知 UUID}（已硬删／不存在 → 404）" \
+  -X DELETE "${BASE}/api/resources/00000000-0000-7000-8000-000000000000"
+
+say ""
+say "-- 未实现端点（任务 28；此处只演示当前真实响应，不得当作已具备）--"
 hit 400 "GET /api/resources/trash（任务 28 未实现 → 路径落在 {id} 上，非 UUID）" "${BASE}/api/resources/trash"
 
 say ""
@@ -161,4 +169,4 @@ if [ "${FAIL}" -ne 0 ]; then
   say "结论：有端点实际状态与预期不符，需排查（见上方 [FAIL]）。"
   exit 1
 fi
-say "结论：已实现端点的行为与 05-接口契约 §3.1–§3.4 及负例口径一致；3.5–3.8 未实现（如实标注）。"
+say "结论：已实现端点的行为与 05-接口契约 §3.1–§3.5 及负例口径一致；3.6–3.8 未实现（如实标注）。"

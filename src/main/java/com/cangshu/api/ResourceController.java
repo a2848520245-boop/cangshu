@@ -6,6 +6,7 @@ import com.cangshu.api.dto.UploadResponse;
 import com.cangshu.catalog.CatalogException;
 import com.cangshu.catalog.CatalogService;
 import com.cangshu.catalog.DownloadService;
+import com.cangshu.catalog.TrashService;
 import com.cangshu.ingest.StagedUpload;
 import com.cangshu.ingest.UploadIngestService;
 import com.cangshu.search.ResourceQueryService;
@@ -20,6 +21,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +40,8 @@ import org.springframework.web.multipart.MultipartFile;
  *       回收站中的资源对普通列表／详情不可见（REQ-M1-04／06）。</li>
  *   <li>任务 5（05-接口契约 §3.4）：{@code GET /api/resources/{id}/content} 下载与
  *       {@code inline=1} 预览（REQ-M1-07，不自研格式解析器）。</li>
+ *   <li>任务 6（05-接口契约 §3.5）：{@code DELETE /api/resources/{id}} 软删 → 204，
+ *       资源进回收站（置 {@code deletedAt}／{@code expireAt}），字节与引用不动。</li>
  * </ul>
  */
 @RestController
@@ -51,13 +55,15 @@ public class ResourceController {
     private final CatalogService catalog;
     private final ResourceQueryService queries;
     private final DownloadService downloads;
+    private final TrashService trash;
 
     public ResourceController(UploadIngestService ingest, CatalogService catalog,
-            ResourceQueryService queries, DownloadService downloads) {
+            ResourceQueryService queries, DownloadService downloads, TrashService trash) {
         this.ingest = ingest;
         this.catalog = catalog;
         this.queries = queries;
         this.downloads = downloads;
+        this.trash = trash;
     }
 
     @PostMapping(value = "/resources", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -111,6 +117,19 @@ public class ResourceController {
                 .orElseThrow(() -> new CatalogException(
                         CatalogException.Code.RESOURCE_NOT_FOUND, "资源不存在", null));
         return ResourceResponse.detail(view);
+    }
+
+    /**
+     * 软删（契约 §3.5，任务 6）：置删除态并写软删时刻与固定到期时刻，资源进入回收站 → 204（无响应体）。
+     *
+     * <p>语义：**只删引用**——内容行与物理字节不动，保护引用计数照样包含这一行，因此软删不触发
+     * 内容待回收；到期或显式清空才硬删（清空属任务 28）。软删**幂等**：重复调用返回 204 且不刷新
+     * 首次到期时刻（06 §8）。硬删后资源行已不存在 → 404 {@code RESOURCE_NOT_FOUND}（契约 §3.5）。
+     */
+    @DeleteMapping("/resources/{id}")
+    public ResponseEntity<Void> delete(@PathVariable("id") UUID id) {
+        trash.softDelete(id);
+        return ResponseEntity.noContent().build();
     }
 
     /**
