@@ -7,7 +7,7 @@ import com.cangshu.catalog.CatalogException;
 import com.cangshu.catalog.CatalogService;
 import com.cangshu.catalog.DownloadService;
 import com.cangshu.catalog.TrashService;
-import com.cangshu.ingest.StagedUpload;
+import com.cangshu.common.StagedUpload;
 import com.cangshu.ingest.UploadIngestService;
 import com.cangshu.search.ResourceQueryService;
 import java.io.IOException;

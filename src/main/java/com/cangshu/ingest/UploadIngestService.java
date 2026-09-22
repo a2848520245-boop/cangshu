@@ -1,6 +1,7 @@
 package com.cangshu.ingest;
 
 import com.cangshu.catalog.CatalogException;
+import com.cangshu.common.StagedUpload;
 import com.cangshu.config.CangshuProperties;
 import com.cangshu.storage.Digestor;
 import com.cangshu.storage.FileStore;
@@ -33,7 +34,7 @@ public class UploadIngestService {
      */
     public StagedUpload stage(InputStream in, Long declaredSizeBytes) {
         long maxBytes = properties.getUpload().getMaxSize().toBytes();
-        FileStore.Staged staged;
+        StagedUpload staged;
         try {
             staged = files.stage(in, maxBytes, digestor);
         } catch (StorageLimitExceededException e) {
@@ -47,6 +48,6 @@ public class UploadIngestService {
             throw CatalogException.hashMismatch("声明大小 " + declaredSizeBytes + " 与实际接收 "
                     + staged.sizeBytes() + " 字节不一致（内容损坏），未入库");
         }
-        return new StagedUpload(staged.temp(), staged.canonicalAlgorithm(), staged.digest(), staged.sizeBytes());
+        return staged;
     }
 }

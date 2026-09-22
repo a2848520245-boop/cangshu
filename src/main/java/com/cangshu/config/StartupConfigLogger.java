@@ -24,13 +24,19 @@ public class StartupConfigLogger {
 
     @EventListener(ApplicationReadyEvent.class)
     public void logResolvedConfig() {
-        log.info("CANGSHU|config|dataRoot={}|uploadMaxSizeBytes={}|trashRetention={}|migrationDir={}|migrationLockKey={}|writerLockKey={}",
+        log.info("CANGSHU|config|dataRoot={}|uploadMaxSizeBytes={}|trashRetention={}|migrationDir={}|migrationLockKey={}|writerLockKey={}|writerLockFile={}",
                 resolveAbsolute(properties.getDataRoot()),
                 properties.getUpload().getMaxSize().toBytes(),
                 properties.getTrash().getRetention(),
                 resolveAbsolute(properties.getMigration().getDir()),
                 CangshuProperties.MIGRATION_LOCK_KEY,
-                CangshuProperties.WRITER_LOCK_KEY);
+                CangshuProperties.WRITER_LOCK_KEY,
+                writerLockFile());
+    }
+
+    /** 单写者门的数据根文件锁路径（任务 29）：数据根下的 {@code .cangshu-writer.lock}，属协议标记不计业务字节。 */
+    private Path writerLockFile() {
+        return Path.of(resolveAbsolute(properties.getDataRoot()), WriterGate.LOCK_FILE_NAME);
     }
 
     /** 把原始路径解析为规范绝对路径；数据根与迁移目录的统一取值口径（07-运行手册 §1）。 */

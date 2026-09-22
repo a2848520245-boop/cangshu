@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.cangshu.ingest.StagedUpload;
+import com.cangshu.common.StagedUpload;
 import com.cangshu.ingest.UploadIngestService;
 import com.cangshu.storage.FileStore;
 import java.io.ByteArrayInputStream;

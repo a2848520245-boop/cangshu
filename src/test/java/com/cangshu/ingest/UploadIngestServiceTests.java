@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.cangshu.catalog.CatalogException;
 import com.cangshu.config.CangshuProperties;
+import com.cangshu.config.WriterGate;
+import com.cangshu.common.StagedUpload;
 import com.cangshu.storage.FileStore;
 import com.cangshu.storage.Sha256Digester;
 import java.io.ByteArrayInputStream;
@@ -31,7 +33,8 @@ class UploadIngestServiceTests {
         properties = new CangshuProperties();
         properties.setDataRoot(tempDir.resolve("data-root").toString());
         properties.getUpload().setMaxSize(DataSize.ofKilobytes(1));
-        ingest = new UploadIngestService(new FileStore(properties), new Sha256Digester(), properties);
+        ingest = new UploadIngestService(new FileStore(Path.of(properties.getDataRoot()), WriterGate.LOCK_FILE_NAME),
+                new Sha256Digester(), properties);
     }
 
     @Test
@@ -40,7 +43,7 @@ class UploadIngestServiceTests {
         StagedUpload staged = ingest.stage(new ByteArrayInputStream(content), (long) content.length);
         String expected = HexFormat.of().formatHex(
                 java.security.MessageDigest.getInstance("SHA-256").digest(content));
-        assertEquals("SHA-256", staged.algorithm());
+        assertEquals("SHA-256", staged.canonicalAlgorithm());
         assertEquals(expected, staged.digest());
         assertEquals(content.length, staged.sizeBytes());
         assertTrue(Files.isRegularFile(staged.temp()));

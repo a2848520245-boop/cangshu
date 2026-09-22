@@ -8,11 +8,14 @@ FROM eclipse-temurin:21-jre
 
 # 交付态固定时区与语言无关行为：时间一律 UTC（05 §总则：时间 ISO-8601 UTC）
 ENV TZ=UTC \
-    CANGSHU_DATA_ROOT=/data
+    CANGSHU_DATA_ROOT=/data \
+    CANGSHU_MIGRATION_DIR=/app/db/migration
 
 WORKDIR /app
 # 产物名由 pom 固定（artifactId-version.jar）；COPY 精确到文件，避免把整个 target/ 拖进镜像
 COPY target/cangshu-0.1.0-SNAPSHOT.jar /app/cangshu.jar
+# 启动核对必须读取与人工迁移同一份脚本；仅复制脚本，不在镜像启动时执行它们。
+COPY db/migration /app/db/migration
 
 # 数据根在容器内固定为 /data（07 §3 命名口径：宿主 cangshu-blobs → 容器 /data）
 VOLUME ["/data"]

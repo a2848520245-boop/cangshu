@@ -22,8 +22,8 @@ import com.cangshu.catalog.mapper.ContentConflictMapper;
 import com.cangshu.catalog.mapper.ContentMapper;
 import com.cangshu.catalog.mapper.LocationMapper;
 import com.cangshu.catalog.mapper.ResourceMapper;
-import com.cangshu.config.CangshuProperties;
-import com.cangshu.ingest.StagedUpload;
+import com.cangshu.common.StagedUpload;
+import com.cangshu.config.WriterGate;
 import com.cangshu.storage.FileStore;
 import com.cangshu.storage.LockTimeoutException;
 import com.cangshu.storage.SegmentLockManager;
@@ -71,9 +71,7 @@ class CatalogServiceTests {
 
     @BeforeEach
     void setUp() {
-        CangshuProperties properties = new CangshuProperties();
-        properties.setDataRoot(tempDir.resolve("data-root").toString());
-        files = new FileStore(properties);
+        files = new FileStore(tempDir.resolve("data-root"), WriterGate.LOCK_FILE_NAME);
         locks = new SegmentLockManager();
         contentMapper = mock(ContentMapper.class);
         resourceMapper = mock(ResourceMapper.class);
@@ -103,8 +101,7 @@ class CatalogServiceTests {
     }
 
     private StagedUpload staged(byte[] bytes) throws Exception {
-        FileStore.Staged staged = files.stage(new ByteArrayInputStream(bytes), -1, new Sha256Digester());
-        return new StagedUpload(staged.temp(), staged.canonicalAlgorithm(), staged.digest(), staged.sizeBytes());
+        return files.stage(new ByteArrayInputStream(bytes), -1, new Sha256Digester());
     }
 
     private String storageKeyOf(String digest) {
@@ -200,7 +197,7 @@ class CatalogServiceTests {
     @DisplayName("B 命中复用：不重写字节、只插资源行，deduplicated=true")
     void existingContentWithIdenticalBytesReusesWithoutRewritingBytes() throws Exception {
         byte[] first = "B 分支：同内容再次上传".getBytes(StandardCharsets.UTF_8);
-        FileStore.Staged seeded = files.stage(new ByteArrayInputStream(first), -1, new Sha256Digester());
+        StagedUpload seeded = files.stage(new ByteArrayInputStream(first), -1, new Sha256Digester());
         String storageKey = storageKeyOf(seeded.digest());
         files.moveInto(seeded.temp(), storageKey);
         String blobBefore = files.sha256Hex(files.blobPath(storageKey));
@@ -230,7 +227,7 @@ class CatalogServiceTests {
     void sizeMismatchWritesAuditAndLeavesExistingRowAndBytesUntouched() throws Exception {
         byte[] existingBytes = "既有内容较长".getBytes(StandardCharsets.UTF_8);
         byte[] incomingBytes = "短".getBytes(StandardCharsets.UTF_8);
-        FileStore.Staged seeded = files.stage(new ByteArrayInputStream(existingBytes), -1, new Sha256Digester());
+        StagedUpload seeded = files.stage(new ByteArrayInputStream(existingBytes), -1, new Sha256Digester());
         String storageKey = storageKeyOf(seeded.digest());
         files.moveInto(seeded.temp(), storageKey);
         String blobBefore = files.sha256Hex(files.blobPath(storageKey));
@@ -271,7 +268,7 @@ class CatalogServiceTests {
         byte[] incomingBytes = "BYTE-MISMATCH 同大小 B".getBytes(StandardCharsets.UTF_8);
         assertEquals(existingBytes.length, incomingBytes.length, "前置：同大小");
 
-        FileStore.Staged seeded = files.stage(new ByteArrayInputStream(existingBytes), -1, new Sha256Digester());
+        StagedUpload seeded = files.stage(new ByteArrayInputStream(existingBytes), -1, new Sha256Digester());
         String storageKey = storageKeyOf(seeded.digest());
         files.moveInto(seeded.temp(), storageKey);
         String blobBefore = files.sha256Hex(files.blobPath(storageKey));
@@ -299,7 +296,7 @@ class CatalogServiceTests {
     @DisplayName("F 目标键被占且字节相同：幂等补齐索引行，不覆盖既有字节")
     void targetOccupiedWithIdenticalBytesReconcilesIndexRows() throws Exception {
         byte[] content = "F 分支：字节已在、行已丢".getBytes(StandardCharsets.UTF_8);
-        FileStore.Staged seeded = files.stage(new ByteArrayInputStream(content), -1, new Sha256Digester());
+        StagedUpload seeded = files.stage(new ByteArrayInputStream(content), -1, new Sha256Digester());
         String storageKey = storageKeyOf(seeded.digest());
         files.moveInto(seeded.temp(), storageKey);
         String blobBefore = files.sha256Hex(files.blobPath(storageKey));
@@ -447,7 +444,7 @@ class CatalogServiceTests {
     @DisplayName("D 大小冲突且位置记录数异常：仍按 409 处理，审计既有键留空而不填伪键（L-9）")
     void sizeMismatchWithLocationAnomalyKeepsConflictAndLeavesKeyNull() throws Exception {
         byte[] existingBytes = "既有内容较长（位置异常场景）".getBytes(StandardCharsets.UTF_8);
-        FileStore.Staged seeded = files.stage(new ByteArrayInputStream(existingBytes), -1, new Sha256Digester());
+        StagedUpload seeded = files.stage(new ByteArrayInputStream(existingBytes), -1, new Sha256Digester());
         String storageKey = storageKeyOf(seeded.digest());
         files.moveInto(seeded.temp(), storageKey);
 
@@ -485,7 +482,7 @@ class CatalogServiceTests {
     @DisplayName("B 分支返回的摘要与库内身份一致（小写归一化，L-2）")
     void reuseBranchReturnsNormalizedDigest() throws Exception {
         byte[] content = "B 分支摘要归一化".getBytes(StandardCharsets.UTF_8);
-        FileStore.Staged seeded = files.stage(new ByteArrayInputStream(content), -1, new Sha256Digester());
+        StagedUpload seeded = files.stage(new ByteArrayInputStream(content), -1, new Sha256Digester());
         String storageKey = storageKeyOf(seeded.digest());
         files.moveInto(seeded.temp(), storageKey);
 

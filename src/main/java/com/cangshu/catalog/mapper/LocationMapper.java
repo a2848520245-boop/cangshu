@@ -39,4 +39,20 @@ public interface LocationMapper extends BaseMapper<LocationEntity> {
             """)
     List<ContentLocationRow> pageContentWithLocation(@Param("afterId") UUID afterId,
             @Param("limit") int limit);
+
+    /**
+     * 按内容主键**锁内重读**「内容身份 ＋ 位置键」（对账判定用）：分页结果只是候选，判定必须在持有
+     * 该内容身份分段锁之后按当前行进（04 §6 :107「六类共锁」——上传在同一把锁内移动字节、登记位置，
+     * 所以锁内重读要么看到它已提交的行，要么确认它还没开始）。
+     *
+     * <p>位置记录数异常时返回多行，由调用方记数据异常并告警——不在这里猜哪一行是真的。
+     */
+    @Select("""
+            SELECT c.id AS content_id, c.hash_algorithm, c.digest, c.size_bytes, c.status,
+                   l.storage_key
+            FROM cangshu_m1.content c
+            LEFT JOIN cangshu_m1.location l ON l.content_id = c.id
+            WHERE c.id = #{contentId}
+            """)
+    List<ContentLocationRow> findContentLocation(@Param("contentId") UUID contentId);
 }

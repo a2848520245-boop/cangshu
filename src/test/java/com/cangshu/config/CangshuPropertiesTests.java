@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.cangshu.api.dto.ResourceResponse;
+import com.cangshu.api.dto.HashView;
 import com.cangshu.api.dto.UploadResponse;
 import com.cangshu.search.ResourceQueryService;
 import com.cangshu.storage.Algorithms;
@@ -20,8 +21,9 @@ import org.junit.jupiter.api.Test;
  * 配置绑定层的口径校验与对外显示值一致性。
  *
  * <p>前者对应评审 L-7（`07-运行手册 §1`「保留期允许测试值 0，禁止负数」此前未实现）；
- * 后者对应评审 L-1（算法命名空间③ 的显示值在 api 层被硬编码，与
- * {@link Algorithms#DISPLAY_SHA256} 存在漂移风险）。
+ * 后者对应评审 L-1（算法命名空间③ 的显示值在 api 层被硬编码而存在漂移风险）；
+ * P0-3④ B 后该显示值由 api 侧唯一常量 {@link HashView#DISPLAY_ALGORITHM} 持有，
+ * api 不再引用 storage 的算法类（结构断言见 {@code com.cangshu.arch.DependencyStructureTests}）。
  */
 class CangshuPropertiesTests {
 
@@ -51,22 +53,22 @@ class CangshuPropertiesTests {
     }
 
     @Test
-    @DisplayName("对外 hash.algorithm 使用算法命名空间③ 的显示值（L-1），不在 DTO 里复制字面量")
+    @DisplayName("对外 hash.algorithm 使用算法命名空间③ 的显示值（L-1），由 api 侧唯一常量持有")
     void hashAlgorithmUsesDisplayNamespace() {
         UUID id = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         UploadResponse upload = new UploadResponse(id, "样本.bin", 3L, "application/octet-stream",
-                new UploadResponse.HashView(Algorithms.DISPLAY_SHA256, "ab".repeat(32)),
+                HashView.sha256("ab".repeat(32)),
                 List.of(), "READY", now, false, UUID.randomUUID());
-        assertEquals(Algorithms.DISPLAY_SHA256, upload.hash().algorithm());
+        assertEquals(HashView.DISPLAY_ALGORITHM, upload.hash().algorithm());
         assertEquals("sha256", upload.hash().algorithm(), "契约 05 §1 固定为显示值 sha256");
 
         ResourceQueryService.ResourceView view = new ResourceQueryService.ResourceView(
                 id, "样本.bin", 3L, "application/octet-stream", List.of(), "READY", now,
                 UUID.randomUUID(), Algorithms.CANONICAL_SHA256, "ab".repeat(32), null, null);
         ResourceResponse listItem = ResourceResponse.listItem(view);
-        assertEquals(Algorithms.DISPLAY_SHA256, listItem.hash().algorithm());
-        assertEquals(Algorithms.DISPLAY_SHA256, ResourceResponse.detail(view).hash().algorithm());
+        assertEquals(HashView.DISPLAY_ALGORITHM, listItem.hash().algorithm());
+        assertEquals(HashView.DISPLAY_ALGORITHM, ResourceResponse.detail(view).hash().algorithm());
     }
 }

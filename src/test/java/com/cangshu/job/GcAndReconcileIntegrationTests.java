@@ -6,7 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.cangshu.catalog.CatalogService;
 import com.cangshu.catalog.TrashService;
-import com.cangshu.ingest.StagedUpload;
+import com.cangshu.config.WriterGate;
+import com.cangshu.common.StagedUpload;
 import com.cangshu.ingest.UploadIngestService;
 import com.cangshu.storage.FileStore;
 import java.io.ByteArrayInputStream;
@@ -14,9 +15,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -73,6 +80,8 @@ class GcAndReconcileIntegrationTests {
         jdbc.update("TRUNCATE cangshu_m1.resource, cangshu_m1.location, "
                 + "cangshu_m1.content_conflict, cangshu_m1.content");
         FileSystemUtils.deleteRecursively(DATA_ROOT);
+        // 夹具卫生：并发窗口用例的延时触发器绝不能跨用例存活（否则其他用例的上传会被拖慢）
+        dropCommitWindowTrigger();
     }
 
     // ────────────────────────── GC ──────────────────────────
@@ -287,6 +296,133 @@ class GcAndReconcileIntegrationTests {
         assertEquals(0, report.sizeMismatch());
         assertFalse(report.needsAttention(), "不该有告警：" + report.notes());
         assertEquals("READY", statusOf(fixture.contentId()));
+    }
+
+    // ──────────────── P0-3③ 对账共锁／门协议文件保护（04 §6 :107「六类共锁」） ────────────────
+
+    @Test
+    @DisplayName("门协议文件：持锁对账后仍在原处、未进 orphan/、不计入孤儿（同轮真孤儿照常隔离）")
+    void neverTouchesWriterGateProtocolFile() throws Exception {
+        Path lockFile = DATA_ROOT.resolve(WriterGate.LOCK_FILE_NAME);
+        Files.createDirectories(DATA_ROOT);
+        if (!Files.exists(lockFile)) {
+            // 上下文启动时启动门已建好并持有它；cleanState 会重建数据根目录，这里补上同一份协议标记。
+            Files.writeString(lockFile, "任务29 单写者门协议标记：不是字节对象", StandardCharsets.UTF_8);
+        }
+        String lockDigest = sha256Hex(Files.readAllBytes(lockFile));
+        long lockSize = Files.size(lockFile);
+        FileTime lockModified = Files.getLastModifiedTime(lockFile);
+
+        // 同一轮放一个真孤儿：证明扫描确实跑过，锁文件是被「排除」，而不是「这一轮没扫」。
+        byte[] orphanBytes = "任务29：与门锁文件同轮的真孤儿字节".getBytes(StandardCharsets.UTF_8);
+        String orphanDigest = sha256Hex(orphanBytes);
+        String orphanKey = "sha256/" + orphanDigest.substring(0, 2) + "/" + orphanDigest.substring(2, 4)
+                + "/" + orphanDigest;
+        Path orphan = DATA_ROOT.resolve(orphanKey);
+        Files.createDirectories(orphan.getParent());
+        Files.write(orphan, orphanBytes);
+
+        ReconcileService.ReconcileReport report = reconcile.runOnce();
+
+        assertEquals(1, report.orphanFound(), "只把真孤儿计为孤儿（门锁文件不得进候选）");
+        assertEquals(1, report.orphanQuarantined());
+        assertTrue(Files.isRegularFile(lockFile), "门锁文件必须仍在原路径：" + lockFile);
+        assertEquals(lockDigest, sha256Hex(Files.readAllBytes(lockFile)), "门锁文件字节未被改写");
+        assertEquals(lockSize, Files.size(lockFile), "门锁文件长度未变");
+        assertEquals(lockModified, Files.getLastModifiedTime(lockFile), "门锁文件未被改名／重建／触碰");
+        assertFalse(Files.exists(DATA_ROOT.resolve(ReconcileService.ORPHAN_DIR)
+                .resolve(WriterGate.LOCK_FILE_NAME)), "门锁文件不得被隔离进 orphan/");
+        assertTrue(Files.exists(DATA_ROOT.resolve(ReconcileService.ORPHAN_DIR).resolve(orphanKey)),
+                "同轮的真孤儿照常隔离（证明扫描发生过）");
+    }
+
+    @Test
+    @DisplayName("并发上传 vs 对账：已 moveInto、位置行未提交的字节不得被隔离（共锁＋锁内重读）")
+    void concurrentUploadWindowIsNeverQuarantined() throws Exception {
+        byte[] bytes = "任务29：未提交窗口内的字节，对账不得隔离".getBytes(StandardCharsets.UTF_8);
+        String digest = sha256Hex(bytes);
+        String key = "sha256/" + digest.substring(0, 2) + "/" + digest.substring(2, 4) + "/" + digest;
+        Path blob = DATA_ROOT.resolve(key);
+        Path quarantined = DATA_ROOT.resolve(ReconcileService.ORPHAN_DIR).resolve(key);
+
+        installCommitWindowTrigger(COMMIT_WINDOW_SECONDS);
+        ExecutorService worker = Executors.newSingleThreadExecutor();
+        UUID contentId;
+        try {
+            Future<CatalogService.UploadResult> upload = worker.submit(() -> {
+                StagedUpload staged = ingest.stage(new ByteArrayInputStream(bytes), (long) bytes.length);
+                return catalog.upload(staged, "并发上传.bin", "application/octet-stream");
+            });
+
+            // 阻塞点：字节已 moveInto（盘上可见），事务未提交（别的连接看不到内容行）。
+            awaitCondition(() -> Files.isRegularFile(blob) && contentRowsForDigest(digest) == 0,
+                    Duration.ofSeconds(30), "上传进入「字节已入位、位置行未提交」的窗口");
+            assertTrue(Files.isRegularFile(blob), "阻塞点上内容地址已有字节（moveInto 已完成）");
+            assertEquals(0, contentRowsForDigest(digest), "阻塞点上事务未提交（锁外看不到内容行）");
+
+            ReconcileService.ReconcileReport report = reconcile.runOnce();
+
+            assertEquals(0, report.orphanQuarantined(), "未提交窗口内的字节不得被隔离");
+            assertEquals(0, report.orphanFound(), "锁内重读后该键已登记：不算孤儿");
+            assertEquals(1, report.orphanConverged(), "候选在锁内重读时已被上传登记 → 收敛");
+            assertTrue(Files.isRegularFile(blob), "字节必须仍在内容地址上");
+            assertFalse(Files.exists(quarantined), "不得出现隔离副本");
+
+            contentId = upload.get(60, TimeUnit.SECONDS).contentId();
+        } finally {
+            worker.shutdownNow();
+            dropCommitWindowTrigger();
+        }
+
+        assertEquals("READY", statusOf(contentId), "提交后内容就绪");
+        assertEquals(1, countLocations(contentId), "位置行已在");
+        assertEquals(digest, sha256Hex(Files.readAllBytes(blob)), "正式字节与内容身份一致");
+
+        ReconcileService.ReconcileReport second = reconcile.runOnce();
+        assertEquals(0, second.orphanFound(), "已登记键不再算孤儿");
+        assertEquals(0, second.bytesMissing(), "无缺失字节");
+        assertFalse(second.needsAttention(), "对账收敛、无告警：" + second.notes());
+        assertTrue(Files.isRegularFile(blob), "字节仍在原位");
+    }
+
+    /** 延时触发器名／函数名与睡眠秒数（普通触发器：不进 pg_constraint，对 DEC-T3 结构门无影响）。 */
+    private static final String COMMIT_WINDOW_TRIGGER = "cangshu_test_commit_window";
+    private static final String COMMIT_WINDOW_FUNCTION = "cangshu_test_commit_window_gate";
+    private static final int COMMIT_WINDOW_SECONDS = 5;
+
+    /** 把上传事务卡在「已 moveInto、行未提交」窗口（resource 插入后、COMMIT 前）的夹具。 */
+    private void installCommitWindowTrigger(int sleepSeconds) {
+        jdbc.execute("CREATE OR REPLACE FUNCTION cangshu_m1." + COMMIT_WINDOW_FUNCTION
+                + "() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(" + sleepSeconds
+                + "); RETURN COALESCE(NEW, OLD); END $$");
+        jdbc.execute("DROP TRIGGER IF EXISTS " + COMMIT_WINDOW_TRIGGER + " ON cangshu_m1.resource");
+        jdbc.execute("CREATE TRIGGER " + COMMIT_WINDOW_TRIGGER
+                + " AFTER INSERT ON cangshu_m1.resource FOR EACH ROW EXECUTE FUNCTION cangshu_m1."
+                + COMMIT_WINDOW_FUNCTION + "()");
+    }
+
+    private void dropCommitWindowTrigger() {
+        jdbc.execute("DROP TRIGGER IF EXISTS " + COMMIT_WINDOW_TRIGGER + " ON cangshu_m1.resource");
+        jdbc.execute("DROP FUNCTION IF EXISTS cangshu_m1." + COMMIT_WINDOW_FUNCTION + "()");
+    }
+
+    /** 锁外可见的内容行数（未提交事务的行对别的连接不可见＝0）。 */
+    private int contentRowsForDigest(String digest) {
+        Integer count = jdbc.queryForObject(
+                "SELECT count(*) FROM cangshu_m1.content WHERE digest = ?", Integer.class, digest);
+        return count == null ? 0 : count;
+    }
+
+    private static void awaitCondition(BooleanSupplier condition, Duration timeout, String description)
+            throws InterruptedException {
+        Instant deadline = Instant.now().plus(timeout);
+        while (Instant.now().isBefore(deadline)) {
+            if (condition.getAsBoolean()) {
+                return;
+            }
+            Thread.sleep(50L);
+        }
+        throw new AssertionError("等待超时（" + timeout.toSeconds() + " 秒）：" + description);
     }
 
     // ────────────────────────── 夹具 ──────────────────────────

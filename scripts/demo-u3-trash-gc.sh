@@ -4,8 +4,12 @@
 # 用法：
 #   bash scripts/demo-u3-trash-gc.sh [端口]
 #
-# 前置：与 scripts/demo-u2-softdelete.sh 相同（JDK 21 + java 在 PATH + Maven + 本机 PostgreSQL 17）。
-#   本脚本**自行重建**演示库（默认 cangshu_u3demo）与数据根，并按《07-M1-运行手册》§4 的文档路径迁移。
+# 前置：与 scripts/demo-u2-softdelete.sh 相同（JAVA_HOME 指向 JDK 21 + Maven + 本机 PostgreSQL 17）。
+#   运行时：serve 与 CLI 一次性作业都用 ${JAVA_HOME}/bin/java[.exe] 的绝对路径，建库前断言主版本 21；
+#   不符即以 CANGSHU|demo|java21|denied 可见失败（退出码 3）——裸 java 不用（本机 PATH 上是 Java 8）。
+#   本脚本**自行重建**演示库（默认 cangshu_u3demo）与数据根，迁移统一走人工迁移入口 bash scripts/migrate.sh。
+#   生命周期（P0-3②）：serve 停写且写者门释放之后才允许跑 CLI 作业（GC／对账）；异常夹具只能在最后一次
+#   启动维护之后布置，避免重启维护把待测状态提前消费（见 ⑦／⑧／⑨）。
 #
 # 覆盖（05-接口契约 §3.6–§3.8、04-架构与计划 §5 ②③④、07-运行手册 §6、08-验收规范 §4／§5）：
 #   ① 回收站列表：只给已软删未到期的行、另带 deletedAt／expireAt、不出现在普通列表；
@@ -28,17 +32,31 @@ JAR="${ROOT_DIR}/target/cangshu-0.1.0-SNAPSHOT.jar"
 DATA_ROOT="${CANGSHU_U3_DEMO_DATA_ROOT:-${ROOT_DIR}/target/demo-u3-data-root}"
 LOG_DIR="${CANGSHU_U3_DEMO_LOG_DIR:-${ROOT_DIR}/target/demo-u3-logs}"
 RUN_LOG="${LOG_DIR}/demo-u3-serve.log"
-DB="${CANGSHU_U3_DEMO_DB:-cangshu_u3demo}"
+DB="${CANGSHU_U3_DEMO_DB-cangshu_u3demo}"
 PSQL="${PSQL:-E:/PostgreSQL/17/bin/psql.exe}"
 MIGRATION_DIR="${ROOT_DIR}/db/migration"
 
 export PGPASSWORD="${CANGSHU_DB_PASSWORD:-postgres}"
-export CANGSHU_DB_URL="${CANGSHU_DB_URL:-jdbc:postgresql://127.0.0.1:5432/${DB}?currentSchema=cangshu_m1}"
+export CANGSHU_DB_URL="${CANGSHU_DB_URL-jdbc:postgresql://127.0.0.1:5432/${DB}?currentSchema=cangshu_m1}"
 export CANGSHU_DB_USER="${CANGSHU_DB_USER:-postgres}"
 
-rm -rf "${LOG_DIR}"
-if [ -z "${CANGSHU_U3_DEMO_DATA_ROOT:-}" ]; then
-  rm -rf "${DATA_ROOT}"     # 默认数据根每次重建，快照才干净；显式指定时不越权删
+db_name_guard() {
+  [ "$DB" = 'cangshu_u3demo' ] || { printf '%s\n' '[库名安全门] U3 只允许 cangshu_u3demo；未执行删除或 DDL。' >&2; exit 2; }
+  local url_db="${CANGSHU_DB_URL##*/}"
+  url_db="${url_db%%\?*}"
+  [ "$url_db" = "$DB" ] || { printf '%s\n' '[库名安全门] URL 目标库与 U3 演示库不一致；未执行删除或 DDL。' >&2; exit 2; }
+}
+db_name_guard
+
+if [ -z "${CANGSHU_U3_DEMO_LOG_DIR+x}" ]; then
+  [ -f "${ROOT_DIR}/pom.xml" ] && [ "${LOG_DIR}" = "${ROOT_DIR}/target/demo-u3-logs" ] \
+    || { printf '%s\n' '拒绝清理：U3 日志目录不在默认白名单内。' >&2; exit 2; }
+  rm -rf -- "${LOG_DIR}"
+fi
+if [ -z "${CANGSHU_U3_DEMO_DATA_ROOT+x}" ]; then
+  [ -f "${ROOT_DIR}/pom.xml" ] && [ "${DATA_ROOT}" = "${ROOT_DIR}/target/demo-u3-data-root" ] \
+    || { printf '%s\n' '拒绝清理：U3 数据根不在默认白名单内。' >&2; exit 2; }
+  rm -rf -- "${DATA_ROOT}"     # 默认数据根每次重建，快照才干净；显式指定时不越权删
 fi
 mkdir -p "${LOG_DIR}" "${DATA_ROOT}"
 PASS=0

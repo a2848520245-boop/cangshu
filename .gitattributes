@@ -1,0 +1,12 @@
+# 换行与字节级摘要（P0-3 收尾补丁）
+#
+# 台账 cangshu_m1.schema_version.script_sha256 记的是**盘上原始字节**的 SHA-256
+# （scripts/lib/migration-lock.sh 直接对宿主文件算摘要）。迁移脚本一旦在 clone／检出时空被
+# 行尾转换（CRLF），文件"看起来没变"、git 也照样认为工作树干净（autocrlf 会在比较前归一化），
+# 但整文件摘要已经变了 —— scripts/migrate.sh 的只读预检会以
+# preflight-denied|reason=digest-drift 拒绝迁移，形成"不改文件过不去、改文件又违反只增不改"的死锁。
+#
+# 这里把这类文件钉成仓库内与工作树里都是 LF，使摘要与检出平台／core.autocrlf 配置无关。
+db/migration/*.sql text eol=lf
+scripts/** text eol=lf
+*.sh text eol=lf

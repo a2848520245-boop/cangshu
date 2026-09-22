@@ -20,6 +20,7 @@ import com.cangshu.catalog.mapper.LocationMapper;
 import com.cangshu.catalog.mapper.ResourceMapper;
 import com.cangshu.common.UuidV7;
 import com.cangshu.config.CangshuProperties;
+import com.cangshu.config.WriterGate;
 import com.cangshu.storage.FileStore;
 import com.cangshu.storage.SegmentLockManager;
 import java.nio.file.Path;
@@ -59,7 +60,8 @@ class TrashServiceTests {
     void setUp() {
         properties = new CangshuProperties();
         properties.setDataRoot(tempDir.resolve("data-root").toString());
-        files = new FileStore(properties);
+        files = new FileStore(Path.of(properties.getDataRoot()).toAbsolutePath().normalize(),
+                WriterGate.LOCK_FILE_NAME);
         resourceMapper = mock(ResourceMapper.class);
         contentMapper = mock(ContentMapper.class);
         locationMapper = mock(LocationMapper.class);

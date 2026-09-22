@@ -9,7 +9,7 @@ import com.cangshu.catalog.mapper.ContentMapper;
 import com.cangshu.catalog.mapper.LocationMapper;
 import com.cangshu.catalog.mapper.ResourceMapper;
 import com.cangshu.common.UuidV7;
-import com.cangshu.ingest.StagedUpload;
+import com.cangshu.common.StagedUpload;
 import com.cangshu.storage.Algorithms;
 import com.cangshu.storage.FileStore;
 import com.cangshu.storage.LockTimeoutException;

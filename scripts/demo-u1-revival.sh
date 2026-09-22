@@ -42,7 +42,53 @@ export PGPASSWORD="${CANGSHU_DB_PASSWORD:-postgres}"
 export CANGSHU_DB_URL="${CANGSHU_DB_URL:-jdbc:postgresql://127.0.0.1:5432/${DB}?currentSchema=cangshu_m1}"
 export CANGSHU_DB_USER="${CANGSHU_DB_USER:-postgres}"
 
-rm -rf "${LOG_DIR}"
+# ---------------------------------------------------------------------------
+# 库名安全门（2026-09-22 裁决：本次只加库名安全门，迁移锁对齐另开切片）
+# 起因：本脚本直接执行 `DROP DATABASE IF EXISTS ${DB}`，库名取自环境变量且无校验，
+#       一次变量覆盖即可误删既有库（与 cangshu_m1demo 事故同源）。
+# 门位：在任何 DDL（DROP／CREATE DATABASE、迁移）之前执行；不通过即退出，不发 DDL。
+# 规则：只允许本脚本的演示库名；空值、通配符、非法字符、系统库、既有业务库，
+#       以及 CANGSHU_DB_URL 指向的库名与 DB 不一致，一律拒绝。
+# 退出码：2＝被库名安全门拒绝（未发出任何 DDL）；1＝既有流程内的失败。
+# ---------------------------------------------------------------------------
+ALLOWED_DB="cangshu_u1demo"
+DENIED_DB_NAMES="postgres template0 template1 cangshu cangshu_test cangshu_m1demo"
+db_name_guard() { # <候选库名>
+  local candidate="$1" denied="" url_db=""
+  if [ -z "${candidate}" ]; then
+    printf '%s\n' "[库名安全门] 拒绝：库名为空（环境变量 CANGSHU_U1_DEMO_DB 未给值）。允许值：${ALLOWED_DB}" >&2
+    exit 2
+  fi
+  case "${candidate}" in
+    *'*'*|*'?'*|*'['*|*']'*)
+      printf '%s\n' "[库名安全门] 拒绝：库名 '${candidate}' 含通配符。允许值：${ALLOWED_DB}" >&2
+      exit 2 ;;
+    *[!A-Za-z0-9_]*)
+      printf '%s\n' "[库名安全门] 拒绝：库名 '${candidate}' 含字母／数字／下划线以外的字符（引号、分号、空格等）。允许值：${ALLOWED_DB}" >&2
+      exit 2 ;;
+  esac
+  for denied in ${DENIED_DB_NAMES}; do
+    if [ "${candidate}" = "${denied}" ]; then
+      printf '%s\n' "[库名安全门] 拒绝：'${candidate}' 是系统库或既有业务库，禁止被演示脚本重建／删除。允许值：${ALLOWED_DB}" >&2
+      exit 2
+    fi
+  done
+  if [ "${candidate}" != "${ALLOWED_DB}" ]; then
+    printf '%s\n' "[库名安全门] 拒绝：'${candidate}' 不在允许集合内。允许集合：{${ALLOWED_DB}}" >&2
+    exit 2
+  fi
+  url_db="${CANGSHU_DB_URL##*/}"; url_db="${url_db%%\?*}"
+  if [ "${url_db}" != "${candidate}" ]; then
+    printf '%s\n' "[库名安全门] 拒绝：CANGSHU_DB_URL 指向的库 '${url_db}' 与 DB '${candidate}' 不一致（建库／迁移与运行期写入必须同库）。允许值：${ALLOWED_DB}" >&2
+    exit 2
+  fi
+}
+db_name_guard "${DB}"
+if [ -z "${CANGSHU_U1_DEMO_LOG_DIR+x}" ]; then
+  [ -f "${ROOT_DIR}/pom.xml" ] && [ "${LOG_DIR}" = "${ROOT_DIR}/target/demo-u1-logs" ] \
+    || { printf '%s\n' '拒绝清理：U1 日志目录不在默认白名单内。' >&2; exit 2; }
+  rm -rf -- "${LOG_DIR}"
+fi
 mkdir -p "${LOG_DIR}" "${DATA_ROOT}"
 PASS=0
 FAIL=0
@@ -117,36 +163,16 @@ else
   [ -f "${JAR}" ] || { say "构建未产出 ${JAR}"; exit 1; }
 fi
 
-say "-- 建库与人工迁移（07 §4：脚本只增不改，DDL 与 schema_version 记账同一事务）--"
+say "-- 建库与统一迁移入口（07 §4：脚本只增不改，DDL 与 schema_version 记账同一事务）--"
 "${PSQL}" -h 127.0.0.1 -U "${CANGSHU_DB_USER}" -d postgres -c "DROP DATABASE IF EXISTS ${DB}" >> "${SUMMARY}" 2>&1
 "${PSQL}" -h 127.0.0.1 -U "${CANGSHU_DB_USER}" -d postgres -c "CREATE DATABASE ${DB}" >> "${SUMMARY}" 2>&1 \
   || { say "建库失败（psql=${PSQL}）"; exit 1; }
-for script in "${MIGRATION_DIR}"/V*.sql; do
-  script_sha="$(sha256sum "${script}" | cut -d' ' -f1)"
-  "${PSQL}" -h 127.0.0.1 -U "${CANGSHU_DB_USER}" -d "${DB}" -q -v ON_ERROR_STOP=1 \
-    -v "script_sha256=${script_sha}" -f "$(win_path "${script}")" >> "${SUMMARY}" 2>&1 \
-    || { say "迁移失败：${script}"; exit 1; }
-  say "  已执行 $(basename "${script}")（sha256=${script_sha:0:12}…）"
-done
+run_migration
 say "  台账：$(q "SELECT string_agg(version || ':' || script_name, ', ' ORDER BY version) FROM cangshu_m1.schema_version")"
 
 say ""
-say "启动 serve：java -jar <jar> --server.port=${PORT}"
-java -jar "$(win_path "${JAR}")" --server.port="${PORT}" \
-  --cangshu.data-root="$(win_path "${DATA_ROOT}")" > "${RUN_LOG}" 2>&1 &
-SERVER_PID=$!
-
-READY=0
-for _ in $(seq 1 60); do
-  if curl -sS -o "$(win_path "${LOG_DIR}/body-health.out")" "${BASE}/actuator/health" 2>/dev/null; then READY=1; break; fi
-  sleep 1
-done
-if [ "${READY}" -ne 1 ]; then
-  say "serve 在 60 秒内未就绪 —— 演示中止。serve 日志尾部："
-  tail -20 "${RUN_LOG}" | tee -a "${SUMMARY}"
-  exit 1
-fi
-say "  serve 就绪（pid ${SERVER_PID}）"
+say "启动 serve：${JAVA_HOME}/bin/java -jar <jar> --server.port=${PORT}"
+start_server "${RUN_LOG}" "① 首传"
 
 say ""
 say "-- ① 首传：新建内容（A 分支）--"

@@ -4,9 +4,11 @@
 # 用法：
 #   bash scripts/demo-u2-softdelete.sh [端口]
 #
-# 前置：与 scripts/demo-u1-revival.sh 相同（JDK 21 + java 在 PATH + Maven + 本机 PostgreSQL 17）。
-#   本脚本**自行重建**演示库（默认 cangshu_u2demo），并按《07-M1-运行手册》§4 的文档路径人工迁移：
-#   按 V1／V2 顺序执行 db/migration/*.sql，每个脚本带 -v ON_ERROR_STOP=1 -v script_sha256=<脚本SHA-256>。
+# 前置：与 scripts/demo-u1-revival.sh 相同（JAVA_HOME 指向 JDK 21 + Maven + 本机 PostgreSQL 17）。
+#   运行时：用 ${JAVA_HOME}/bin/java[.exe] 的绝对路径起 serve，并在建库前断言主版本 21；不符即以
+#   CANGSHU|demo|java21|denied 可见失败（退出码 3）——裸 java 不用（本机 PATH 上是 Java 8）。
+#   本脚本**自行重建**演示库（默认 cangshu_u2demo），迁移统一走人工迁移入口 bash scripts/migrate.sh
+#   （07 §4：迁移锁 → 写者锁 → 只读预检 → 跳过已登记版本 → 仅执行新增脚本；退出码 0／1／2）。
 #
 # 本脚本演示并自检的是任务 6 的验收面（05-接口契约 §3.5、04-架构与计划 §5 ①、
 # 06-数据契约 §7／§8）：
@@ -31,19 +33,33 @@ JAR="${ROOT_DIR}/target/cangshu-0.1.0-SNAPSHOT.jar"
 DATA_ROOT="${CANGSHU_U2_DEMO_DATA_ROOT:-${ROOT_DIR}/target/demo-u2-data-root}"
 LOG_DIR="${CANGSHU_U2_DEMO_LOG_DIR:-${ROOT_DIR}/target/demo-u2-logs}"
 RUN_LOG="${LOG_DIR}/demo-u2-serve.log"
-DB="${CANGSHU_U2_DEMO_DB:-cangshu_u2demo}"
+DB="${CANGSHU_U2_DEMO_DB-cangshu_u2demo}"
 PSQL="${PSQL:-E:/PostgreSQL/17/bin/psql.exe}"
 MIGRATION_DIR="${ROOT_DIR}/db/migration"
 
 export PGPASSWORD="${CANGSHU_DB_PASSWORD:-postgres}"
-export CANGSHU_DB_URL="${CANGSHU_DB_URL:-jdbc:postgresql://127.0.0.1:5432/${DB}?currentSchema=cangshu_m1}"
+export CANGSHU_DB_URL="${CANGSHU_DB_URL-jdbc:postgresql://127.0.0.1:5432/${DB}?currentSchema=cangshu_m1}"
 export CANGSHU_DB_USER="${CANGSHU_DB_USER:-postgres}"
 
-rm -rf "${LOG_DIR}"
+db_name_guard() {
+  [ "$DB" = 'cangshu_u2demo' ] || { printf '%s\n' '[库名安全门] U2 只允许 cangshu_u2demo；未执行删除或 DDL。' >&2; exit 2; }
+  local url_db="${CANGSHU_DB_URL##*/}"
+  url_db="${url_db%%\?*}"
+  [ "$url_db" = "$DB" ] || { printf '%s\n' '[库名安全门] URL 目标库与 U2 演示库不一致；未执行删除或 DDL。' >&2; exit 2; }
+}
+db_name_guard
+
+if [ -z "${CANGSHU_U2_DEMO_LOG_DIR+x}" ]; then
+  [ -f "${ROOT_DIR}/pom.xml" ] && [ "${LOG_DIR}" = "${ROOT_DIR}/target/demo-u2-logs" ] \
+    || { printf '%s\n' '拒绝清理：U2 日志目录不在默认白名单内。' >&2; exit 2; }
+  rm -rf -- "${LOG_DIR}"
+fi
 # 数据根每次重建（仅默认值，避免误删用户显式指定的目录），否则前次运行的字节会残留下来，
 # 污染 ACC-G5 的文件树快照——快照本该是「本次上传的那一份内容」的干净清单。
-if [ -z "${CANGSHU_U2_DEMO_DATA_ROOT:-}" ]; then
-  rm -rf "${DATA_ROOT}"
+if [ -z "${CANGSHU_U2_DEMO_DATA_ROOT+x}" ]; then
+  [ -f "${ROOT_DIR}/pom.xml" ] && [ "${DATA_ROOT}" = "${ROOT_DIR}/target/demo-u2-data-root" ] \
+    || { printf '%s\n' '拒绝清理：U2 数据根不在默认白名单内。' >&2; exit 2; }
+  rm -rf -- "${DATA_ROOT}"
 fi
 mkdir -p "${LOG_DIR}" "${DATA_ROOT}"
 PASS=0
@@ -94,6 +110,100 @@ filetree_snapshot() { # <名称> → 写出并回显路径
 }
 same_filetree() { # <快照1> <快照2>
   if diff -q "$1" "$2" >/dev/null 2>&1; then printf 'same'; else printf 'different'; fi
+}
+
+# ─────────────────────── P0-3② 共用件（与 u1／u3 同形） ───────────────────────
+JAVA_BIN=""
+
+unix_path() { # Windows 形态（E:\...）→ POSIX（/e/...）；已是 POSIX 则原样返回
+  case "$1" in
+    [A-Za-z]:[\\/]*) if command -v cygpath >/dev/null 2>&1; then cygpath -u "$1"; else printf '%s' "$1"; fi ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+java21_deny() { # <原因>：可见失败（退出码 3），不发 DDL、不起进程
+  printf '%s\n' "CANGSHU|demo|java21|denied|reason=$1|JAVA_HOME=${JAVA_HOME:-<未设置>}" >&2
+  printf '%s\n' "  说明：三个 demo 脚本统一强制 JDK 21（07 §1 运行时）；本机 PATH 上的 java 是 Java 8，裸 java 起不了 serve。" >&2
+  printf '%s\n' "  修复：export JAVA_HOME=<JDK 21 安装目录>（Windows 形态或 /e/... 都可以）后重跑本脚本；本脚本未发出任何 DDL、未启动进程。" >&2
+  exit 3
+}
+
+require_java21() { # 建库／构建／启动之前：JAVA_HOME → bin/java[.exe]，断言主版本 21
+  local home="${JAVA_HOME:-}" posix_home="" candidate="" version_line=""
+  [ -n "$home" ] || java21_deny "JAVA_HOME-unset"
+  posix_home="$(unix_path "$home")"
+  [ -d "$posix_home" ] || java21_deny "JAVA_HOME-dir-missing:$posix_home"
+  for candidate in "$posix_home/bin/java.exe" "$posix_home/bin/java"; do
+    if [ -x "$candidate" ]; then JAVA_BIN="$candidate"; break; fi
+  done
+  [ -n "$JAVA_BIN" ] || java21_deny "java-executable-missing:$posix_home/bin"
+  version_line="$("${JAVA_BIN}" -version 2>&1 | head -1)"
+  case "$version_line" in
+    *'version "21.'*) ;;
+    *) java21_deny "not-jdk21:$version_line" ;;
+  esac
+  export JAVA_HOME="$posix_home"   # 构建（mvn 脚本）与子进程共用同一 JDK，不回落 PATH
+  say "CANGSHU|demo|java21|ok|javaBin=$(win_path "$JAVA_BIN")|version=$version_line"
+}
+
+wait_log_line() { # <日志文件> <ERE> <超时秒>
+  local log="$1" pattern="$2" timeout="${3:-30}" waited=0
+  while [ "$waited" -lt "$timeout" ]; do
+    if grep -Eq "$pattern" "$log" 2>/dev/null; then return 0; fi
+    sleep 1; waited=$((waited + 1))
+  done
+  return 1
+}
+
+start_server() { # <serve 日志> <阶段说明>：JDK 21 起 serve；等健康端点＋写者门＋启动维护摘要
+  local log="$1" phase="$2" ready=0
+  : > "$log"
+  "${JAVA_BIN}" -jar "$(win_path "${JAR}")" --server.port="${PORT}" \
+    --cangshu.data-root="$(win_path "${DATA_ROOT}")" >> "$log" 2>&1 &
+  SERVER_PID=$!
+  for _ in $(seq 1 60); do
+    if curl -sS -o "$(win_path "${LOG_DIR}/body-health.out")" "${BASE}/actuator/health" 2>/dev/null; then ready=1; break; fi
+    sleep 1
+  done
+  if [ "$ready" -ne 1 ]; then
+    say "serve 在 60 秒内未就绪（$phase）—— 演示中止。serve 日志尾部："
+    tail -20 "$log" | tee -a "${SUMMARY}"
+    exit 1
+  fi
+  if ! wait_log_line "$log" 'CANGSHU[|]writer-gate[|]acquired' 30; then
+    say "serve 日志没有写者门获取记录（$phase）—— 演示中止，日志：$log"
+    exit 1
+  fi
+  if ! wait_log_line "$log" 'CANGSHU[|]job[|]maintenance[|]' 30; then
+    say "serve 日志没有启动维护摘要（$phase）—— 演示中止。serve 日志尾部："
+    tail -20 "$log" | tee -a "${SUMMARY}"
+    exit 1
+  fi
+  say "  serve 就绪（pid $SERVER_PID，$phase）"
+  say "  $(grep -o 'CANGSHU|writer-gate|acquired.*' "$log" | tail -1)"
+  say "  $(grep -o 'CANGSHU|job|maintenance|.*' "$log" | tail -1)"
+}
+
+run_migration() { # 统一迁移入口（设计 §2）：不再内联 psql -f；密码只经 PGPASSWORD 环境变量
+  local mig_log_dir="${LOG_DIR}/migration" session_log="" status=0 line=""
+  mkdir -p "$mig_log_dir"
+  CANGSHU_DB_NAME="${DB}" CANGSHU_MIGRATION_DIR="${MIGRATION_DIR}" \
+  CANGSHU_MIGRATION_LOG_DIR="$mig_log_dir" \
+  CANGSHU_MIGRATE_PSQL="${PSQL} -h 127.0.0.1 -p 5432 -U ${CANGSHU_DB_USER} -d ${DB}" \
+    bash "${ROOT_DIR}/scripts/migrate.sh" >> "${SUMMARY}" 2>&1
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    say "  迁移入口 scripts/migrate.sh 退出码 $status（0 成功／1 迁移失败或预检拒绝／2 未拿锁）；未启动 serve，完整输出见 ${SUMMARY}"
+    exit 1
+  fi
+  session_log="$(ls -1t "$mig_log_dir"/migrate-*.log 2>/dev/null | head -1)"
+  say "  迁移入口：bash scripts/migrate.sh → 退出码 0（迁移锁＋写者锁已在其会话内释放）"
+  say "  迁移会话日志：${session_log:-<未找到>}"
+  if [ -n "$session_log" ]; then
+    while IFS= read -r line; do say "    $line"; done \
+      < <(grep -E 'CANGSHU[|]migration[|](script|ledger|lock-acquired|lock-released)' "$session_log")
+  fi
 }
 
 cleanup() {

@@ -1,0 +1,382 @@
+{
+  "formatVersion" : 1,
+  "postgresqlMajor" : 17,
+  "migrations" : [ {
+    "version" : "V1",
+    "scriptName" : "V1__init.sql",
+    "scriptSha256" : "8c6985b07a56969d6c1d3a14942f95115df452b07461be6d026b12d318f0830e"
+  }, {
+    "version" : "V2",
+    "scriptName" : "V2__search_indexes.sql",
+    "scriptSha256" : "252f96b24c1ed0be6644462095225fdf461629db1ba0ed4aff6925e5e1fe7e86"
+  } ],
+  "tables" : [ {
+    "name" : "content",
+    "columns" : [ {
+      "name" : "id",
+      "type" : "uuid",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "hash_algorithm",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "digest",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "size_bytes",
+      "type" : "bigint",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "status",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "created_at",
+      "type" : "timestamptz",
+      "nullable" : false,
+      "defaultDefinition" : "now()"
+    } ],
+    "constraints" : [ {
+      "type" : "c",
+      "name" : "content_size_bytes_check",
+      "columns" : [ "size_bytes" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "check ((size_bytes >= 0))"
+    }, {
+      "type" : "c",
+      "name" : "content_status_check",
+      "columns" : [ "status" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "check ((status = any (array['pending'::text, 'ready'::text, 'failed'::text, 'reclaim_pending'::text, 'reclaiming'::text, 'reclaimed'::text])))"
+    }, {
+      "type" : "p",
+      "name" : "content_pkey",
+      "columns" : [ "id" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "primary key (id)"
+    }, {
+      "type" : "u",
+      "name" : "uq_content_identity",
+      "columns" : [ "hash_algorithm", "digest", "size_bytes" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "unique (hash_algorithm, digest, size_bytes)"
+    } ]
+  }, {
+    "name" : "content_conflict",
+    "columns" : [ {
+      "name" : "id",
+      "type" : "uuid",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "hash_algorithm",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "digest",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "existing_content_id",
+      "type" : "uuid",
+      "nullable" : true,
+      "defaultDefinition" : null
+    }, {
+      "name" : "existing_size_bytes",
+      "type" : "bigint",
+      "nullable" : true,
+      "defaultDefinition" : null
+    }, {
+      "name" : "incoming_size_bytes",
+      "type" : "bigint",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "existing_storage_key",
+      "type" : "text",
+      "nullable" : true,
+      "defaultDefinition" : null
+    }, {
+      "name" : "incoming_storage_key",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "reason",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "created_at",
+      "type" : "timestamptz",
+      "nullable" : false,
+      "defaultDefinition" : "now()"
+    } ],
+    "constraints" : [ {
+      "type" : "c",
+      "name" : "content_conflict_incoming_size_bytes_check",
+      "columns" : [ "incoming_size_bytes" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "check ((incoming_size_bytes >= 0))"
+    }, {
+      "type" : "p",
+      "name" : "content_conflict_pkey",
+      "columns" : [ "id" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "primary key (id)"
+    } ]
+  }, {
+    "name" : "location",
+    "columns" : [ {
+      "name" : "id",
+      "type" : "uuid",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "content_id",
+      "type" : "uuid",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "storage_backend",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "storage_key",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    } ],
+    "constraints" : [ {
+      "type" : "f",
+      "name" : "location_content_id_fkey",
+      "columns" : [ "content_id" ],
+      "referencedSchema" : "cangshu_m1",
+      "referencedTable" : "content",
+      "referencedColumns" : [ "id" ],
+      "definition" : "foreign key (content_id) references cangshu_m1.content(id)"
+    }, {
+      "type" : "p",
+      "name" : "location_pkey",
+      "columns" : [ "id" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "primary key (id)"
+    } ]
+  }, {
+    "name" : "resource",
+    "columns" : [ {
+      "name" : "id",
+      "type" : "uuid",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "name",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "size_bytes",
+      "type" : "bigint",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "mime_type",
+      "type" : "text",
+      "nullable" : true,
+      "defaultDefinition" : null
+    }, {
+      "name" : "content_id",
+      "type" : "uuid",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "tags",
+      "type" : "jsonb",
+      "nullable" : false,
+      "defaultDefinition" : "'[]'::jsonb"
+    }, {
+      "name" : "status",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "deleted_at",
+      "type" : "timestamptz",
+      "nullable" : true,
+      "defaultDefinition" : null
+    }, {
+      "name" : "expire_at",
+      "type" : "timestamptz",
+      "nullable" : true,
+      "defaultDefinition" : null
+    }, {
+      "name" : "created_at",
+      "type" : "timestamptz",
+      "nullable" : false,
+      "defaultDefinition" : "now()"
+    }, {
+      "name" : "updated_at",
+      "type" : "timestamptz",
+      "nullable" : false,
+      "defaultDefinition" : "now()"
+    } ],
+    "constraints" : [ {
+      "type" : "c",
+      "name" : "ck_resource_softdelete",
+      "columns" : [ "status", "deleted_at", "expire_at" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "check ((((status <> 'deleted'::text) and (deleted_at is null) and (expire_at is null)) or ((status = 'deleted'::text) and (deleted_at is not null) and (expire_at is not null))))"
+    }, {
+      "type" : "c",
+      "name" : "resource_size_bytes_check",
+      "columns" : [ "size_bytes" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "check ((size_bytes >= 0))"
+    }, {
+      "type" : "c",
+      "name" : "resource_status_check",
+      "columns" : [ "status" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "check ((status = any (array['pending'::text, 'ready'::text, 'failed'::text, 'deleted'::text])))"
+    }, {
+      "type" : "f",
+      "name" : "resource_content_id_fkey",
+      "columns" : [ "content_id" ],
+      "referencedSchema" : "cangshu_m1",
+      "referencedTable" : "content",
+      "referencedColumns" : [ "id" ],
+      "definition" : "foreign key (content_id) references cangshu_m1.content(id)"
+    }, {
+      "type" : "p",
+      "name" : "resource_pkey",
+      "columns" : [ "id" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "primary key (id)"
+    } ]
+  }, {
+    "name" : "schema_version",
+    "columns" : [ {
+      "name" : "version",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "script_name",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    }, {
+      "name" : "executed_at",
+      "type" : "timestamptz",
+      "nullable" : false,
+      "defaultDefinition" : "now()"
+    }, {
+      "name" : "script_sha256",
+      "type" : "text",
+      "nullable" : false,
+      "defaultDefinition" : null
+    } ],
+    "constraints" : [ {
+      "type" : "p",
+      "name" : "schema_version_pkey",
+      "columns" : [ "version" ],
+      "referencedSchema" : null,
+      "referencedTable" : null,
+      "referencedColumns" : [ ],
+      "definition" : "primary key (version)"
+    } ]
+  } ],
+  "indexes" : [ {
+    "tableName" : "content",
+    "name" : "content_pkey",
+    "definition" : "create unique index content_pkey on cangshu_m1.content using btree (id)"
+  }, {
+    "tableName" : "content",
+    "name" : "idx_content_digest",
+    "definition" : "create index idx_content_digest on cangshu_m1.content using btree (hash_algorithm, digest)"
+  }, {
+    "tableName" : "content",
+    "name" : "idx_content_status",
+    "definition" : "create index idx_content_status on cangshu_m1.content using btree (status)"
+  }, {
+    "tableName" : "content",
+    "name" : "uq_content_identity",
+    "definition" : "create unique index uq_content_identity on cangshu_m1.content using btree (hash_algorithm, digest, size_bytes)"
+  }, {
+    "tableName" : "content_conflict",
+    "name" : "content_conflict_pkey",
+    "definition" : "create unique index content_conflict_pkey on cangshu_m1.content_conflict using btree (id)"
+  }, {
+    "tableName" : "content_conflict",
+    "name" : "idx_content_conflict_digest",
+    "definition" : "create index idx_content_conflict_digest on cangshu_m1.content_conflict using btree (hash_algorithm, digest)"
+  }, {
+    "tableName" : "location",
+    "name" : "idx_location_content_id",
+    "definition" : "create index idx_location_content_id on cangshu_m1.location using btree (content_id)"
+  }, {
+    "tableName" : "location",
+    "name" : "location_pkey",
+    "definition" : "create unique index location_pkey on cangshu_m1.location using btree (id)"
+  }, {
+    "tableName" : "resource",
+    "name" : "idx_resource_content_id",
+    "definition" : "create index idx_resource_content_id on cangshu_m1.resource using btree (content_id)"
+  }, {
+    "tableName" : "resource",
+    "name" : "idx_resource_expire_at",
+    "definition" : "create index idx_resource_expire_at on cangshu_m1.resource using btree (expire_at)"
+  }, {
+    "tableName" : "resource",
+    "name" : "idx_resource_name_trgm",
+    "definition" : "create index idx_resource_name_trgm on cangshu_m1.resource using gin (name public.gin_trgm_ops)"
+  }, {
+    "tableName" : "resource",
+    "name" : "idx_resource_status",
+    "definition" : "create index idx_resource_status on cangshu_m1.resource using btree (status)"
+  }, {
+    "tableName" : "resource",
+    "name" : "idx_resource_tags_jsonb",
+    "definition" : "create index idx_resource_tags_jsonb on cangshu_m1.resource using gin (tags jsonb_path_ops)"
+  }, {
+    "tableName" : "resource",
+    "name" : "resource_pkey",
+    "definition" : "create unique index resource_pkey on cangshu_m1.resource using btree (id)"
+  }, {
+    "tableName" : "schema_version",
+    "name" : "schema_version_pkey",
+    "definition" : "create unique index schema_version_pkey on cangshu_m1.schema_version using btree (version)"
+  } ]
+}

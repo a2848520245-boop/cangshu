@@ -50,4 +50,13 @@ public final class Algorithms {
         }
         throw new IllegalArgumentException("未知规范算法：" + canonical);
     }
+
+    /**
+     * 存储命名空间（相对存储键首段）→ 规范值，{@link #storageNamespace} 的逆映射；
+     * 未知命名空间返回 {@code null}（对账从盘上取键时用来判定「这个键有没有可共锁的内容身份」——
+     * M1 只支持 SHA-256，非本系统命名空间既不是内容的物理地址，也无从与上传共锁）。
+     */
+    public static String canonicalOfNamespace(String namespace) {
+        return STORAGE_NAMESPACE_SHA256.equals(namespace) ? CANONICAL_SHA256 : null;
+    }
 }

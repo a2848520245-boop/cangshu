@@ -12,8 +12,8 @@ import com.cangshu.catalog.entity.ResourceEntity;
 import com.cangshu.catalog.mapper.ContentMapper;
 import com.cangshu.catalog.mapper.LocationMapper;
 import com.cangshu.catalog.mapper.ResourceMapper;
-import com.cangshu.config.CangshuProperties;
 import com.cangshu.storage.FileStore;
+import com.cangshu.config.WriterGate;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -52,9 +52,7 @@ class DownloadServiceTests {
         resourceMapper = org.mockito.Mockito.mock(ResourceMapper.class);
         contentMapper = org.mockito.Mockito.mock(ContentMapper.class);
         locationMapper = org.mockito.Mockito.mock(LocationMapper.class);
-        CangshuProperties properties = new CangshuProperties();
-        properties.setDataRoot(tempDir.resolve("data-root").toString());
-        files = new FileStore(properties);
+        files = new FileStore(tempDir.resolve("data-root"), WriterGate.LOCK_FILE_NAME);
         downloads = new DownloadService(resourceMapper, contentMapper, locationMapper, files);
 
         // 默认装配：就绪资源 → 就绪内容 → 恰一条位置记录 → 盘上字节与身份大小一致
