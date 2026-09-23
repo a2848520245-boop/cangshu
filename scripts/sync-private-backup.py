@@ -118,7 +118,7 @@ def prepare_docs(repo: str, head: str, note_sources: dict[str, Path], files: dic
         if not local_head:
             git("fetch", "backup", "project-docs", cwd=CACHE)
             git("checkout", "-B", "project-docs", "FETCH_HEAD", cwd=CACHE)
-    expected = set(note_sources) | {"backup-manifest.json"}
+    expected = set(note_sources) | {"backup-manifest.json", ".gitattributes"}
     tracked = set(git("ls-files", "-z", cwd=CACHE).split("\0")) - {""}
     for stale in tracked - expected:
         if not (stale.startswith("project-notes/") or stale.startswith("acceptance-evidence/") or stale.startswith("project-rules/")):
@@ -136,7 +136,10 @@ def prepare_docs(repo: str, head: str, note_sources: dict[str, Path], files: dic
     payload = {"schema": 1, "scope": "CODE_DOCS_ONLY", "code_head": head, "files": files,
                "excluded": ["raw recovery materials", "credentials", "runtime database", "uploaded content"]}
     (CACHE / "backup-manifest.json").write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    # Formal evidence may contain mixed CRLF/LF bytes. Preserve them exactly in Git.
+    (CACHE / ".gitattributes").write_bytes(b"* -text\n")
     git("add", "-A", cwd=CACHE)
+    git("add", "--renormalize", "-A", cwd=CACHE)
     if git("diff", "--cached", "--name-only", cwd=CACHE):
         git("commit", "-m", f"backup: docs and evidence for {head[:12]}", cwd=CACHE)
     return git("rev-parse", "HEAD", cwd=CACHE)
