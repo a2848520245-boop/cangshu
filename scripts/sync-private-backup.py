@@ -77,6 +77,33 @@ def code_files() -> list[Path]:
     return [CODE / part.decode("utf-8", errors="surrogateescape") for part in raw.split(b"\0") if part]
 
 
+def scan_reachable_git_blobs() -> None:
+    rows = git("rev-list", "--objects", "--branches", "--tags").splitlines()
+    with subprocess.Popen(["git", "cat-file", "--batch"], cwd=CODE,
+                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as batch:
+        assert batch.stdin is not None and batch.stdout is not None
+        for row in rows:
+            oid, _, label = row.partition(" ")
+            batch.stdin.write((oid + "\n").encode("ascii"))
+            batch.stdin.flush()
+            parts = batch.stdout.readline().split()
+            if len(parts) != 3 or parts[0].decode("ascii") != oid:
+                raise RuntimeError("Git 历史对象读取失败")
+            size = int(parts[2])
+            data = batch.stdout.read(size)
+            if len(data) != size or batch.stdout.read(1) != b"\n":
+                raise RuntimeError("Git 历史对象不完整")
+            if parts[1] != b"blob":
+                continue
+            if label and SENSITIVE_NAME.search(label.replace("/", "\\")):
+                raise RuntimeError(f"Git 历史存在敏感文件名，拒绝上传：{oid[:12]}")
+            if any(pattern.search(data) for pattern in SENSITIVE_BYTES):
+                raise RuntimeError(f"Git 历史疑似包含凭据，拒绝上传：{oid[:12]}")
+        batch.stdin.close()
+        if batch.wait() != 0:
+            raise RuntimeError("Git 历史对象检查失败")
+
+
 def verify_preflight(repo: str) -> tuple[str, dict[str, Path], dict[str, dict[str, str | int]]]:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
         raise RuntimeError("私仓名必须为 owner/repo")
@@ -92,6 +119,7 @@ def verify_preflight(repo: str) -> tuple[str, dict[str, Path], dict[str, dict[st
         manifest[label] = {"bytes": length, "sha256": digest}
     for path in code_files():
         inspect_file(f"code/{path.relative_to(CODE).as_posix()}", path)
+    scan_reachable_git_blobs()
     return head, note_sources, manifest
 
 
