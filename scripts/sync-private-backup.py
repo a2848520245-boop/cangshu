@@ -47,6 +47,10 @@ def sources() -> dict[str, Path]:
     if not NOTES.is_dir():
         raise RuntimeError("仓鼠笔记目录不可访问")
     result = {f"project-notes/{p.name}": p for p in NOTES.glob("*.md") if p.is_file()}
+    # Curated project records live in the archive; do not mirror raw recovery material.
+    for path in (NOTES / "归档").glob("防误删方案-*.md"):
+        if path.is_file():
+            result[f"project-records/{path.name}"] = path
     parent_rules = CODE.parent / "AGENTS.md"
     if not parent_rules.is_file():
         raise RuntimeError("项目父级规则缺失")
@@ -149,7 +153,7 @@ def prepare_docs(repo: str, head: str, note_sources: dict[str, Path], files: dic
     expected = set(note_sources) | {"backup-manifest.json", ".gitattributes"}
     tracked = set(git("ls-files", "-z", cwd=CACHE).split("\0")) - {""}
     for stale in tracked - expected:
-        if not (stale.startswith("project-notes/") or stale.startswith("acceptance-evidence/") or stale.startswith("project-rules/")):
+        if not (stale.startswith("project-notes/") or stale.startswith("project-records/") or stale.startswith("acceptance-evidence/") or stale.startswith("project-rules/")):
             raise RuntimeError(f"文档缓存存在未知受跟踪路径：{stale}")
         target = (CACHE / stale).resolve()
         if not target.is_relative_to(CACHE.resolve()):
