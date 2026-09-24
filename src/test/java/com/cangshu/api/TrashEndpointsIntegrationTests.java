@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
@@ -29,16 +30,15 @@ import org.springframework.util.FileSystemUtils;
  * ② 分页上限与 §3.2 同口径（>200 即 400，2026-09-22 裁决定稿于 §3.6）；
  * ③ 清空**未带显式确认即 400 且一行不删**（08 §5 负例），确认后删行并让引用归零的内容进待回收。
  *
- * <p>前提：本机 PostgreSQL 17 已运行且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
+ * <p>前提：隔离 VM 内合成 PostgreSQL 17 已启动且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
  * 与 {@code V2__search_indexes.sql} 初始化。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres",
         "cangshu.data-root=target/task28-test-data-root"
 })
-class TrashEndpointsIntegrationTests {
+class TrashEndpointsIntegrationTests extends IsolatedPostgresIntegrationTest {
 
     @LocalServerPort
     int port;

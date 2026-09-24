@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import com.cangshu.common.StagedUpload;
 import com.cangshu.ingest.UploadIngestService;
 import com.cangshu.storage.FileStore;
@@ -33,16 +34,15 @@ import org.springframework.util.FileSystemUtils;
  * （段二被杀在删字节前）、待回收（字节与位置行都还在）。另加两条拒止：盘上字节与内容身份不符必须
  * 409 且原行原字节不动；复活后同一内容再传必须回到普通复用（不再重建）。
  *
- * <p>前提：本机 PostgreSQL 17 已运行且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
+ * <p>前提：隔离 VM 内合成 PostgreSQL 17 已启动且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
  * 初始化；数据根用独立的测试目录，测试自力清场。
  */
 @SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres",
         "cangshu.data-root=target/task26-revival-test-data-root"
 })
-class ContentRevivalIntegrationTests {
+class ContentRevivalIntegrationTests extends IsolatedPostgresIntegrationTest {
 
     private static final Path DATA_ROOT = Path.of("target/task26-revival-test-data-root");
 

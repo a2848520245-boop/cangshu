@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import com.cangshu.catalog.CatalogService;
 import com.cangshu.catalog.TrashService;
 import com.cangshu.config.WriterGate;
@@ -42,15 +43,14 @@ import org.springframework.util.FileSystemUtils;
  * BYTE_MISMATCH 停删并告警、连续两周期仍回收中告警；对账三条：临时文件按年龄清、孤儿隔离、
  * 缺失字节只报不自动改态。
  *
- * <p>前提：本机 PostgreSQL 17 已运行且 {@code cangshu_test} 库已初始化；数据根用独立测试目录。
+ * <p>前提：隔离 VM 内合成 PostgreSQL 17 已启动且 {@code cangshu_test} 库已初始化；数据根用独立测试目录。
  */
 @SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres",
         "cangshu.data-root=target/task28-job-test-data-root"
 })
-class GcAndReconcileIntegrationTests {
+class GcAndReconcileIntegrationTests extends IsolatedPostgresIntegrationTest {
 
     private static final Path DATA_ROOT = Path.of("target/task28-job-test-data-root");
 

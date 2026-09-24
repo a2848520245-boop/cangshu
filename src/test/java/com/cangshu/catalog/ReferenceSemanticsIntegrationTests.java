@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import com.cangshu.common.UuidV7;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,16 +21,15 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * 证明不了的事——① 计数走 {@code idx_resource_content_id} 且**不过滤状态**，因此回收站行（软删的行）
  * 照样算保护引用；② 状态落库结果（不是「方法被调用过」）。
  *
- * <p>前提：本机 PostgreSQL 17 已运行且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
+ * <p>前提：隔离 VM 内合成 PostgreSQL 17 已启动且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
  * 初始化（与其他集成测试共用同一库，故各测试自力清场）。
  */
 @SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres",
         "cangshu.data-root=target/task26-ref-test-data-root"
 })
-class ReferenceSemanticsIntegrationTests {
+class ReferenceSemanticsIntegrationTests extends IsolatedPostgresIntegrationTest {
 
     @Autowired
     JdbcTemplate jdbc;

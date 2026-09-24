@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -13,16 +14,15 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * 健康检查（Actuator）与最小接口 /api/health 的默认配置行为。
  *
- * <p>任务 28 起上下文加载会连库跑启动对账（04 §8 步骤 3），故显式指向测试库；
+ * <p>任务 28 起上下文加载会连库跑启动对账（04 §8 步骤 3），故显式指向隔离 VM 内合成测试库；
  * 本用例只断言健康与配置回显的形态，不依赖库内数据。
  */
 @SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres"
 })
 @AutoConfigureMockMvc
-class HealthEndpointTests {
+class HealthEndpointTests extends IsolatedPostgresIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

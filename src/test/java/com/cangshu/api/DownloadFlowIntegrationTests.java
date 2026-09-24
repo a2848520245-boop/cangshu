@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import com.cangshu.storage.Digestor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,15 +37,14 @@ import org.springframework.util.FileSystemUtils;
  * 下载字节与上传摘要恒等（EV-04 §7.1 遗留在本包闭合）、{@code Content-Disposition}
  * attachment／inline 两种形态（inline=1 只改响应头不改字节）、inline 非法值 400、
  * 404（不存在／软删不可见）、字节缺失拒绝下载（500，绝不返回空文件）、去重共享内容可下载。
- * 前提：本机 PostgreSQL 17 已运行且 {@code cangshu_test} 库已按 V1+V2 初始化。
+ * 前提：隔离 VM 内合成 PostgreSQL 17 已启动且 {@code cangshu_test} 库已按 V1+V2 初始化。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres",
         "cangshu.data-root=target/task5-test-data-root"
 })
-class DownloadFlowIntegrationTests {
+class DownloadFlowIntegrationTests extends IsolatedPostgresIntegrationTest {
 
     @LocalServerPort
     int port;

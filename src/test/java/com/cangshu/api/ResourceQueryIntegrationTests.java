@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
@@ -30,16 +31,15 @@ import org.springframework.util.FileSystemUtils;
  * 任务 4 真实 HTTP 集成测试（ACC-HTTP 任务级切片）：独立 Tomcat（随机端口）经 TCP 请求
  * {@code GET /api/resources}（列表／文件名／标签检索、分页、400 负例）与
  * {@code GET /api/resources/{id}}（详情、contentId 引用关系展示、404）。
- * 前提：本机 PostgreSQL 17 已运行且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
+ * 前提：隔离 VM 内合成 PostgreSQL 17 已启动且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
  * 与 {@code V2__search_indexes.sql} 初始化。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres",
         "cangshu.data-root=target/task4-test-data-root"
 })
-class ResourceQueryIntegrationTests {
+class ResourceQueryIntegrationTests extends IsolatedPostgresIntegrationTest {
 
     @LocalServerPort
     int port;

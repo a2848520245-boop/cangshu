@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import com.cangshu.storage.Digestor;
 import com.cangshu.storage.SegmentLockManager;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -38,16 +39,15 @@ import org.springframework.util.FileSystemUtils;
  * 400／409（SIZE_MISMATCH／BYTE_MISMATCH／TARGET_PATH_EXISTS）／503（生产 30 秒超时实测）。
  *
  * <p>哈希冲突与锁超时由测试构建专用注入驱动：{@link FakeDigestorConfig}（仅测试装配，正式制品
- * 不含假摘要夹具，无运行期开关）。前提：本机 PostgreSQL 17 已运行且 {@code cangshu_test} 库已按
+ * 不含假摘要夹具，无运行期开关）。前提：隔离 VM 内合成 PostgreSQL 17 已启动且 {@code cangshu_test} 库已按
  * {@code db/migration/V1__init.sql} 初始化（08-验收规范 §2：注入经真实 TCP 完成，不进程内调用服务层）。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres",
         "cangshu.data-root=target/task3-test-data-root"
 })
-class UploadFlowIntegrationTests {
+class UploadFlowIntegrationTests extends IsolatedPostgresIntegrationTest {
 
     /** 测试构建专用注入：固定摘要器接缝（null＝透传真实 SHA-256）。 */
     static final AtomicReference<String> FIXED_DIGEST = new AtomicReference<>(null);

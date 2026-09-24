@@ -39,8 +39,11 @@ M1 无前端；Vue 3、TypeScript、Vite 属后续规划。多用户、外网、
   `psql -d <库> -v script_sha256=<脚本文件 SHA-256> -f db/migration/V1__init.sql`，
   再对 V2__search_indexes.sql 重复同一流程（检索索引：pg_trgm ＋ jsonb_path_ops）；
   脚本只增不改，台账 `schema_version` 记录版本与脚本摘要。
-- 测试前提：`mvn test` 的集成测试需要本机 PostgreSQL 17 运行，且测试库（默认 `cangshu_test`）
-  已按上述步骤执行过 `V1__init.sql` 与 `V2__search_indexes.sql`。
+- 集成测试仅在隔离 VM 的合成 PostgreSQL 17 实例中运行。先创建 `cangshu_test`，按上述步骤执行
+  `V1__init.sql` 与 `V2__search_indexes.sql`，再用 JVM 属性指定该实例端口，例如
+  `mvn -B -ntp -Dcangshu.test.db.port=<port> test`。端口必须是 1..65535 的数字，且不能是 5432；
+  缺失或非法时，Spring 集成测试在建连前失败。宿主机只做 `test-compile` 和无需数据库的单元测试，
+  不运行全量集成测试。
 
 ## 演示与自检（任务 18）
 

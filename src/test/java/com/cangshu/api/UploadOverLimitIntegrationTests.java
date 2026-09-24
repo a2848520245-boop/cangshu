@@ -2,6 +2,7 @@ package com.cangshu.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -21,13 +22,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * 独立上下文把业务上限压到 16KB；HTTP 层与业务上限同源（07-运行手册 §1）。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres",
         "cangshu.data-root=target/task3-test-over-limit",
         "cangshu.upload.max-size=16KB"
 })
-class UploadOverLimitIntegrationTests {
+class UploadOverLimitIntegrationTests extends IsolatedPostgresIntegrationTest {
 
     @LocalServerPort
     int port;

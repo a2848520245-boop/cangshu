@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.cangshu.IsolatedPostgresIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
@@ -30,16 +31,15 @@ import org.springframework.util.FileSystemUtils;
  * 重复软删是否幂等且不刷新首次到期时刻、回收站资源对普通列表／详情／下载是否都不可见、
  * 以及缺资源（已硬删）与非 UUID 的负例。
  *
- * <p>前提：本机 PostgreSQL 17 已运行且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
+ * <p>前提：隔离 VM 内合成 PostgreSQL 17 已启动且 {@code cangshu_test} 库已按 {@code db/migration/V1__init.sql}
  * 与 {@code V2__search_indexes.sql} 初始化。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/cangshu_test?currentSchema=cangshu_m1",
         "spring.datasource.username=postgres",
         "spring.datasource.password=postgres",
         "cangshu.data-root=target/task6-test-data-root"
 })
-class DeleteResourceIntegrationTests {
+class DeleteResourceIntegrationTests extends IsolatedPostgresIntegrationTest {
 
     private static final java.nio.file.Path DATA_ROOT = java.nio.file.Path.of("target/task6-test-data-root");
 
