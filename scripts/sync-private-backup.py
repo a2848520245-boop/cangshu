@@ -111,6 +111,10 @@ def scan_reachable_git_blobs() -> None:
 def verify_preflight(repo: str) -> tuple[str, dict[str, Path], dict[str, dict[str, str | int]]]:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
         raise RuntimeError("私仓名必须为 owner/repo")
+    auth = subprocess.run(["gh", "auth", "status", "--hostname", "github.com"],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if auth.returncode:
+        raise RuntimeError("当前执行身份的 GitHub CLI 登录无效；请用已授权的本机用户身份运行，禁止在此身份直接试探远端 Git")
     head = git("rev-parse", "HEAD")
     if git("status", "--porcelain=v1", "--untracked-files=all"):
         raise RuntimeError("代码工作树未完成提交；先按工作单元提交，再同步")
