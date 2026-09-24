@@ -7,7 +7,8 @@
 ## 1 重新生成 schema 基线清单（需要隔离 PG17 实例）
 
 清单记录的是「某个 PG17 实例上由 `pg_get_constraintdef` / `pg_get_indexdef` 反编译出来的结构」，
-因此生成源必须是**隔离的 PG17 实例**；不要把 `cangshu`、`cangshu_test`、`cangshu_m1demo`
+因此生成源必须是**事前核验的可销毁 VM 中的合成 PG17 实例**；生成器会建库和删库，不能在宿主 C:／E: 演练。
+不要把 `cangshu`、`cangshu_test`、`cangshu_m1demo`
 这类既有库当生成源。生成器会自建随机命名的临时库、按序执行 `db/migration` 脚本、反编译后删除该库，
 应用启动绝不会调用它。
 
@@ -16,10 +17,10 @@
 mvn -B -DskipTests package
 
 # 2) 生成到 target/schema-manifest-generated.json 并与制品清单比较（默认不覆盖制品）
-pwsh -File scripts/generate-schema-manifest.ps1
+pwsh -File scripts/generate-schema-manifest.ps1 -DatabasePort <isolated-port>
 
 # 3) 差异确认无误后落地到制品
-pwsh -File scripts/generate-schema-manifest.ps1 -Apply
+pwsh -File scripts/generate-schema-manifest.ps1 -DatabasePort <isolated-port> -Apply
 ```
 
 - 默认只生成到 `target/` 并打印两份 SHA-256：一致时退出码 0，不一致且未加 `-Apply` 时退出码 1。
@@ -28,14 +29,17 @@ pwsh -File scripts/generate-schema-manifest.ps1 -Apply
 
 ## 2 复现启动门取证（真实 PostgreSQL ＋ 打包 jar）
 
+仅在事前完成隔离核验的可销毁 VM 中运行；先确认本机 PostgreSQL 17 合成实例的身份与非 5432 端口。
+
 ```powershell
-pwsh -File scripts/verify-task30-migration-gate.ps1
+pwsh -File scripts/verify-task30-migration-gate.ps1 -DatabasePort <isolated-port> -VmFixtureId <vm-fixture-id> -DisposableVmConfirmed
 ```
 
-脚本在隔离库 `cangshu_task30_verify` 上：人工执行 `db/migration` 全部脚本 → 正常启动打包 jar
-（断言日志出现 `CANGSHU|migration|verified`、健康检查 UP、退出码 0）→ 四类真实漂移
-（台账缺行／删除 CHECK 约束／删除索引／未登记脚本）各自断言退出码 3 → 结尾删除隔离库。
-每类用例的原始日志留在 `target/task30-migration-gate/`（`-OutputDirectory` 可改，`-KeepDatabase` 可保留库）。
+脚本生成唯一 `runId`，为正常启动和四类漂移分别创建全新的隔离库，并人工执行 `db/migration` 全部脚本。
+正常启动须有 `CANGSHU|migration|verified`、健康检查 UP、退出码 0；台账缺行、删除 CHECK、删除索引、
+未登记脚本四类漂移均须有对应拒绝日志和退出码 3。任一用例失败即停止后续用例。
+原始日志和本轮库清单留在 `target/task30-migration-gate/<runId>/`；脚本不覆盖旧目录或已有库，也不自动删库。
+核对证据后，仅在该可销毁 VM 内按清单人工清理本轮库。
 凭据取自 `src/main/resources/application.yml` 的既有默认值，可被 `CANGSHU_DB_USER` / `CANGSHU_DB_PASSWORD` 覆盖。
 
 ## 3 人工迁移锁

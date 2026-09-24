@@ -3,7 +3,8 @@
     任务 29 单写者启动门取证：真实双进程互斥（退出码 2）＋ 数据根零字节 ＋ 反向证据。
 
 .DESCRIPTION
-    全部在隔离库上操作（默认 cangshu_task29_verify_a / cangshu_task29_verify_b，只新建并保留），
+    全部在隔离库上操作（默认库名前缀 cangshu_task29_verify_a / cangshu_task29_verify_b，
+    每次追加 runId，只新建并保留），
     绝不触碰 cangshu / cangshu_test / cangshu_m1demo，也不改它们的 schema。
 
     步骤：
@@ -18,7 +19,8 @@
          证明门是「互斥」而不是「永久拒绝」。
 
     口径：数据根下的 .cangshu-writer.lock 是协议标记，不算业务字节。
-    输出固定为 target/task29-gate；目录已存在即拒绝运行。证据和本轮新建的库均保留；
+    每次生成唯一 runId，证据写入 target/task29-gate/<runId>；已有同名目录即拒绝运行。
+    证据和本轮新建的库均保留；
     在可销毁 VM 中核对证据后，按脚本输出的主机、端口、库名手工清理。
 
     凭据来自 src/main/resources/application.yml 的既有默认值，可被 CANGSHU_DB_USER / CANGSHU_DB_PASSWORD
@@ -67,14 +69,15 @@ function Resolve-From([string] $Path) {
 
 $migrationDir = Join-Path $repoRoot 'db/migration'
 $jarPath = Join-Path $repoRoot 'target/cangshu-0.1.0-SNAPSHOT.jar'
-$outputRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'target/task29-gate'))
+$runId = 'r' + (Get-Date -Format 'yyyyMMddHHmmssfff') + '_' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
+$managementPath = '/m-' + $runId
+$runRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'target/task29-gate'))
+$outputRoot = [System.IO.Path]::GetFullPath((Join-Path $runRoot $runId))
 $postgresBinPath = Resolve-From $PostgresBin
 $psql = Join-Path $postgresBinPath 'psql.exe'
 $createdb = Join-Path $postgresBinPath 'createdb.exe'
 $curlPath = 'curl.exe'
 $endpoint = $DatabaseHost + ':' + $DatabasePort
-$primaryServerEndpoint = $DatabaseHost + ':' + $PrimaryServerPort
-$secondaryServerEndpoint = $DatabaseHost + ':' + $SecondaryServerPort
 $sharedDataRoot = Join-Path $outputRoot 'data-root-shared'
 $otherDataRoot = Join-Path $outputRoot 'data-root-other'
 
@@ -86,6 +89,13 @@ foreach ($databaseName in @($PrimaryDatabaseName, $SecondaryDatabaseName)) {
 }
 if ($PrimaryDatabaseName -eq $SecondaryDatabaseName) {
     throw '两个隔离库名必须不同：用例 3 要用「同数据根 ＋ 不同库」证明文件锁独立生效'
+}
+$PrimaryDatabaseName += '_' + $runId
+$SecondaryDatabaseName += '_' + $runId
+foreach ($databaseName in @($PrimaryDatabaseName, $SecondaryDatabaseName)) {
+    if ($databaseName.Length -gt 63) {
+        throw "拒绝执行：加 runId 后数据库名超过 PostgreSQL 63 字节限制：$databaseName"
+    }
 }
 if (-not (Test-Path -LiteralPath $migrationDir)) { throw "找不到迁移脚本目录：$migrationDir" }
 if (-not (Test-Path -LiteralPath $jarPath)) {
@@ -106,6 +116,9 @@ if ($javaMajor -lt 21) { throw "运行打包 jar 需要 JDK 21+，当前：$java
 if (-not (Get-Command $curlPath -ErrorAction SilentlyContinue)) {
     throw "找不到 $curlPath（健康检查与优雅停调用它；Windows 10 1803+ 自带 curl.exe）"
 }
+if (-not (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue)) {
+    throw '找不到 Get-NetTCPConnection：无法确认管理请求的监听 PID，拒绝运行'
+}
 
 $applicationYaml = Get-Content -LiteralPath (Join-Path $repoRoot 'src/main/resources/application.yml') -Raw
 function Get-ConfiguredDefault([string] $Key, [string] $Fallback) {
@@ -118,15 +131,22 @@ if (-not $dbUser) { $dbUser = Get-ConfiguredDefault 'username' 'postgres' }
 $dbPassword = [Environment]::GetEnvironmentVariable('CANGSHU_DB_PASSWORD')
 if (-not $dbPassword) { $dbPassword = Get-ConfiguredDefault 'password' 'postgres' }
 
-foreach ($directory in @($repoRoot, (Join-Path $repoRoot 'target'), $outputRoot)) {
-    $item = Get-Item -LiteralPath $directory -Force -ErrorAction SilentlyContinue
-    if ($null -ne $item -and ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
-        throw "拒绝使用重解析目录作为取证输出路径：$directory"
+function Assert-SafeOutputPaths {
+    foreach ($directory in @($repoRoot, (Join-Path $repoRoot 'target'), $runRoot, $outputRoot)) {
+        $item = Get-Item -LiteralPath $directory -Force -ErrorAction SilentlyContinue
+        if ($null -ne $item -and ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+            throw "拒绝使用重解析目录作为取证输出路径：$directory"
+        }
+    }
+    $runRootItem = Get-Item -LiteralPath $runRoot -Force -ErrorAction SilentlyContinue
+    if ($null -ne $runRootItem -and -not $runRootItem.PSIsContainer) {
+        throw "取证根路径不是目录：$runRoot"
+    }
+    if ($null -ne (Get-Item -LiteralPath $outputRoot -Force -ErrorAction SilentlyContinue)) {
+        throw "拒绝覆盖已有取证目录：$outputRoot"
     }
 }
-if ($null -ne (Get-Item -LiteralPath $outputRoot -Force -ErrorAction SilentlyContinue)) {
-    throw "拒绝覆盖已有取证目录：$outputRoot"
-}
+Assert-SafeOutputPaths
 
 # ── 通用工具 ────────────────────────────────────────────────────────────────────────────────
 function Quote-Arguments([string[]] $Arguments) {
@@ -194,7 +214,8 @@ function Start-GateProcess {
     $applicationArguments = @('--spring.main.banner-mode=off', '--server.address=127.0.0.1', "--server.port=$ServerPort")
     if ($AllowShutdownEndpoint) {
         $applicationArguments += '--management.endpoints.web.exposure.include=health,shutdown'
-        $applicationArguments += '--management.endpoint.shutdown.enabled=true'
+        $applicationArguments += '--management.endpoint.shutdown.access=unrestricted'
+        $applicationArguments += "--management.endpoints.web.base-path=$managementPath"
     }
     $stdout = Join-Path $outputRoot "$LogName.log"
     $stderr = Join-Path $outputRoot "$LogName.err.log"
@@ -257,8 +278,18 @@ function Get-LogTail([string] $Path, [int] $Lines = 15) {
     return ((Get-Content -LiteralPath $Path -Encoding UTF8 -Tail $Lines) -join [Environment]::NewLine)
 }
 
+function Assert-OwnedListener {
+    param([System.Diagnostics.Process] $Process, [int] $ServerPort)
+    if ($Process.HasExited) { throw "拒绝管理请求：本次 Java 进程 $($Process.Id) 已退出" }
+    $listeners = @(Get-NetTCPConnection -LocalAddress '127.0.0.1' -LocalPort $ServerPort -State Listen -ErrorAction Stop)
+    if ($listeners.Count -eq 0 -or @($listeners | Where-Object { $_.OwningProcess -ne $Process.Id }).Count -gt 0) {
+        throw "拒绝管理请求：127.0.0.1:$ServerPort 的监听 PID 不是本次 Java 进程 $($Process.Id)"
+    }
+}
+
 function Invoke-Curl {
-    param([string] $Method, [string] $Uri, [int] $TimeoutSeconds = 15)
+    param([string] $Method, [string] $Uri, [System.Diagnostics.Process] $Process, [int] $ServerPort, [int] $TimeoutSeconds = 15)
+    Assert-OwnedListener -Process $Process -ServerPort $ServerPort
     $arguments = @('--silent', '--show-error', '--noproxy', '*', '--max-time', $TimeoutSeconds, '--request', $Method, $Uri)
     $output = (& $curlPath @arguments 2>&1) -join [Environment]::NewLine
     if ($LASTEXITCODE -ne 0) {
@@ -268,13 +299,13 @@ function Invoke-Curl {
 }
 
 function Wait-ForHealth {
-    param([string] $ServerEndpoint, [int] $WaitSeconds)
-    $uri = 'http://' + $ServerEndpoint + '/actuator/health'
+    param([System.Diagnostics.Process] $Process, [int] $ServerPort, [int] $WaitSeconds)
+    $uri = 'http://127.0.0.1:' + $ServerPort + $managementPath + '/health'
     $deadline = (Get-Date).AddSeconds($WaitSeconds)
     $lastError = '（尚未发起请求）'
     while ((Get-Date) -lt $deadline) {
         try {
-            $health = (Invoke-Curl -Method 'GET' -Uri $uri -TimeoutSeconds 5) | ConvertFrom-Json
+            $health = (Invoke-Curl -Method 'GET' -Uri $uri -Process $Process -ServerPort $ServerPort -TimeoutSeconds 5) | ConvertFrom-Json
             if ($health.status -eq 'UP') { return $health }
             $lastError = '健康状态非 UP：' + ($health | ConvertTo-Json -Compress)
         } catch {
@@ -286,8 +317,8 @@ function Wait-ForHealth {
 }
 
 function Stop-GateProcessGracefully {
-    param([System.Diagnostics.Process] $Process, [string] $ServerEndpoint)
-    Invoke-Curl -Method 'POST' -Uri ('http://' + $ServerEndpoint + '/actuator/shutdown') | Out-Null
+    param([System.Diagnostics.Process] $Process, [int] $ServerPort)
+    Invoke-Curl -Method 'POST' -Uri ('http://127.0.0.1:' + $ServerPort + $managementPath + '/shutdown') -Process $Process -ServerPort $ServerPort | Out-Null
     if (-not $Process.WaitForExit(60000)) { throw '优雅停机超时（60 秒内进程未退出）' }
     return $Process.ExitCode
 }
@@ -354,7 +385,7 @@ function Invoke-PrimaryStartupCase {
     if (-not (Wait-ForLogPattern -Path $run.Stdout -Pattern 'Started CangshuApplication' -WaitSeconds $TimeoutSeconds -Process $run.Process)) {
         throw "用例 0 未出现 Started CangshuApplication（见 $($run.Stdout)）" + [Environment]::NewLine + (Get-LogTail $run.Stdout)
     }
-    Wait-ForHealth -ServerEndpoint $primaryServerEndpoint -WaitSeconds 60 | Out-Null
+    Wait-ForHealth -Process $run.Process -ServerPort $PrimaryServerPort -WaitSeconds 60 | Out-Null
 
     # 协议标记不被对账当成孤儿字节：启动对账跑完之后，锁文件必须仍在原路径、且没有被隔离到 orphan/。
     # 一旦被挪走，原路径上会出现一个全新的无人加锁文件，第二个写者就能拿到文件锁。
@@ -439,6 +470,7 @@ function Invoke-DeniedCase {
 
 # ── 取证 ────────────────────────────────────────────────────────────────────────────────────
 Write-Host '== 任务 29 单写者启动门取证 =='
+Write-Host "  runId：$runId"
 Write-Host "  主库：$PrimaryDatabaseName    次库：$SecondaryDatabaseName    @ $endpoint    用户：$dbUser"
 Write-Host "  日志目录：$outputRoot"
 Write-Host "  jar：$jarPath"
@@ -466,7 +498,18 @@ try {
     $env:CANGSHU_DB_PASSWORD = $dbPassword
     Assert-IsolatedDatabaseAbsent -DatabaseName $PrimaryDatabaseName
     Assert-IsolatedDatabaseAbsent -DatabaseName $SecondaryDatabaseName
+    Assert-SafeOutputPaths
+    if (-not (Test-Path -LiteralPath $runRoot)) { New-Item -ItemType Directory -Path $runRoot | Out-Null }
+    Assert-SafeOutputPaths
     New-Item -ItemType Directory -Path $outputRoot | Out-Null
+    @(
+        "runId=$runId"
+        "databaseHost=$DatabaseHost"
+        "databasePort=$DatabasePort"
+        "primaryDatabase=$PrimaryDatabaseName"
+        "secondaryDatabase=$SecondaryDatabaseName"
+        "evidenceDirectory=$outputRoot"
+    ) | Set-Content -LiteralPath (Join-Path $outputRoot 'run-info.txt') -Encoding UTF8
     Write-Host '[1/6] 建两个隔离库并按序人工执行迁移脚本'
     New-IsolatedDataRoot -Path $sharedDataRoot | Out-Null
     New-IsolatedDataRoot -Path $otherDataRoot | Out-Null
@@ -499,7 +542,7 @@ try {
     $snapshotEvidence = $snapshotEvidence + ' ／ 用例 3 后同样一致：' + (Assert-DataRootUnchanged -CaseName '3-same-root-other-database' -Before $snapshotBefore -DataRoot $sharedDataRoot)
 
     Write-Host '[6/6] 用例 4（反向证据）：第一个写者优雅停机后，后续进程必须能正常启动'
-    $primaryExit = Stop-GateProcessGracefully -Process $primary.Run.Process -ServerEndpoint $primaryServerEndpoint
+    $primaryExit = Stop-GateProcessGracefully -Process $primary.Run.Process -ServerPort $PrimaryServerPort
     $results[0].Actual = $primaryExit
     $releaseLine = Get-FirstMatch -Path $primary.Run.Stdout -Pattern 'CANGSHU|writer-gate|released'
     if ($null -eq $releaseLine) {
@@ -509,8 +552,8 @@ try {
     if (-not (Wait-ForLogPattern -Path $reverse.Stdout -Pattern 'Started CangshuApplication' -WaitSeconds $TimeoutSeconds -Process $reverse.Process)) {
         throw "用例 4 反转失败：前一个写者停机后，后续进程仍无法启动（见 $($reverse.Stdout)）" + [Environment]::NewLine + (Get-LogTail $reverse.Stdout)
     }
-    Wait-ForHealth -ServerEndpoint $secondaryServerEndpoint -WaitSeconds 60 | Out-Null
-    $reverseExit = Stop-GateProcessGracefully -Process $reverse.Process -ServerEndpoint $secondaryServerEndpoint
+    Wait-ForHealth -Process $reverse.Process -ServerPort $SecondaryServerPort -WaitSeconds 60 | Out-Null
+    $reverseExit = Stop-GateProcessGracefully -Process $reverse.Process -ServerPort $SecondaryServerPort
     $reverseGateLine = Get-FirstMatch -Path $reverse.Stdout -Pattern 'CANGSHU|writer-gate|acquired'
     $reverseEvidence = '释放日志：' + $releaseLine.Line.Trim()
     $results += [pscustomobject]@{
@@ -530,7 +573,8 @@ try {
         }
     }
     if ($createdDatabases.Count -gt 0) {
-        Write-Host ('  本次新建库已保留：{0}:{1} / {2}' -f $DatabaseHost, $DatabasePort, ($createdDatabases -join ' / '))
+        Write-Host ('  本次 runId={0} 新建库已保留：{1}:{2} / {3}' -f $runId, $DatabaseHost, $DatabasePort, ($createdDatabases -join ' / '))
+        Write-Host "  证据目录：$outputRoot"
         Write-Host '  请在可销毁 VM 中核对证据后，按上述主机、端口、库名手工清理。'
     }
     foreach ($name in $priorEnv.Keys) {
