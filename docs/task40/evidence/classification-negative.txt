@@ -1,0 +1,6 @@
+case=unknown exit=2
+REJECTED unknown: Unclassified Java sources: ['NewTests']; missing classified sources: []
+case=missing exit=2
+REJECTED missing: Unclassified Java sources: []; missing classified sources: ['AlgorithmsTests']
+case=db-in-no-db exit=2
+REJECTED db-in-no-db: Database context appeared in no-DB lane: C:\Users\詩\AppData\Local\Temp\cangshu-ci-classification-m_bfkc3d\AlgorithmsTests.java

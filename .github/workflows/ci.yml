@@ -1,0 +1,153 @@
+name: CangShu layered CI
+
+on:
+  push:
+    branches-ignore:
+      - project-docs
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_real_e2e:
+        description: 'Run isolated PostgreSQL and real-browser E2E (manual acceptance evidence)'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  pr-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --registry=https://registry.npmjs.org --no-audit --no-fund
+      - name: Select every Java test explicitly
+        id: java-tests
+        shell: bash
+        run: |
+          python3 scripts/ci-test-selection.py check
+          echo "unit=$(python3 scripts/ci-test-selection.py unit)" >> "$GITHUB_OUTPUT"
+      - name: CI child-process cleanup regression
+        run: node --test scripts/test-ci-child-process.mjs
+      - name: Backend compile and database-free unit tests
+        run: mvn -B -ntp -Dtest="${{ steps.java-tests.outputs.unit }}" -DforkCount=1 -DreuseForks=false test
+      - name: Task31 fail-closed summary regression
+        run: pwsh -NoProfile -File scripts/test-task31-summary.ps1
+      - name: Task31 retry regression
+        run: pwsh -NoProfile -File scripts/test-task31-retry.ps1
+      - name: Task31 upload contract regression
+        run: pwsh -NoProfile -File scripts/test-task31-upload-contract.ps1
+      - name: Task31 negative-control regression
+        run: pwsh -NoProfile -File scripts/test-task31-negative-controls.ps1
+      - name: Frontend unit and build
+        working-directory: frontend
+        run: |
+          npm run test:unit
+          npm run build
+      - name: Install isolated Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Browser mock interaction and API contract
+        working-directory: frontend
+        run: npm run test:mock
+      - name: Keep automatic gate evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cangshu-pr-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            target/surefire-reports/
+            target/ui-mock-results/
+            target/ui-mock-report/
+
+  real-e2e:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_real_e2e == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CANGSHU_CI_REAL_E2E: run-real-e2e
+      CANGSHU_DB_URL: jdbc:postgresql://127.0.0.1:15439/cangshu_test?currentSchema=cangshu_m1
+      CANGSHU_DB_USER: postgres
+      CANGSHU_DB_PASSWORD: postgres
+      CI_PG_PORT: '15439'
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cangshu_test
+        ports:
+          - '127.0.0.1:15439:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cangshu_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Validate explicit Java test lanes
+        run: python3 scripts/ci-test-selection.py check
+      - name: Prepare two isolated databases and SHA ledgers
+        env:
+          CI_PG_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: bash scripts/ci-prepare-db.sh
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --registry=https://registry.npmjs.org --no-audit --no-fund
+      - name: Install isolated Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Full Maven test suite, fresh JVM per class
+        run: mvn -B -ntp -Dcangshu.test.db.port=15439 -DforkCount=1 -DreuseForks=false test
+      - name: Build complete Spring Boot JAR with UI
+        run: mvn -B -ntp -DskipTests package
+      - name: Real browser against independent JAR and UI database
+        env:
+          CANGSHU_DB_URL: jdbc:postgresql://127.0.0.1:15439/cangshu_ui_ci?currentSchema=cangshu_m1
+        run: node scripts/ci-real-ui.mjs
+      - name: Keep real E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cangshu-real-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            target/surefire-reports/
+            target/ci-real-ui-*/server.log
+            target/ci-real-ui-*/server.err.log
+            target/ci-real-ui-*/server.pid
+            target/ci-real-ui-*/results/
+            target/ci-real-ui-*/report/
+            target/ci-real-ui-*/screenshot.png

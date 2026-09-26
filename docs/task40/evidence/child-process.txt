@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: normal close is already settled before cleanup
+ok 1 - normal close is already settled before cleanup
+  ---
+  duration_ms: 55.3216
+  type: 'test'
+  ...
+# Subtest: signal close is settled even while exitCode is null
+ok 2 - signal close is settled even while exitCode is null
+  ---
+  duration_ms: 9.628
+  type: 'test'
+  ...
+# Subtest: ignored SIGTERM escalates and waits for close
+ok 3 - ignored SIGTERM escalates and waits for close
+  ---
+  duration_ms: 14.5767
+  type: 'test'
+  ...
+# Subtest: spawn error settles without an unhandled error event
+ok 4 - spawn error settles without an unhandled error event
+  ---
+  duration_ms: 0.2715
+  type: 'test'
+  ...
+# Subtest: kill error does not claim a live child has exited
+ok 5 - kill error does not claim a live child has exited
+  ---
+  duration_ms: 0.5645
+  type: 'test'
+  ...
+# Subtest: exit before close waits for close without another kill
+ok 6 - exit before close waits for close without another kill
+  ---
+  duration_ms: 14.1773
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 181.0411
