@@ -1,6 +1,9 @@
 package com.cangshu.job;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.cangshu.catalog.entity.ContentEntity;
 import com.cangshu.catalog.mapper.ContentLocationRow;
+import com.cangshu.catalog.mapper.ContentMapper;
 import com.cangshu.catalog.mapper.LocationMapper;
 import com.cangshu.config.WriterGate;
 import com.cangshu.storage.Algorithms;
@@ -77,11 +80,14 @@ public class ReconcileService {
     static final String TMP_DIR = "tmp";
 
     private final FileStore files;
+    private final ContentMapper contentMapper;
     private final LocationMapper locationMapper;
     private final SegmentLockManager locks;
 
-    public ReconcileService(FileStore files, LocationMapper locationMapper, SegmentLockManager locks) {
+    public ReconcileService(FileStore files, ContentMapper contentMapper, LocationMapper locationMapper,
+            SegmentLockManager locks) {
         this.files = files;
+        this.contentMapper = contentMapper;
         this.locationMapper = locationMapper;
         this.locks = locks;
     }
@@ -216,6 +222,8 @@ public class ReconcileService {
         CONFIRMED_NOT_MOVED,
         /** 锁外像孤儿、锁内重读发现已被上传／复用登记：已收敛，不移动、不删除。 */
         CONVERGED,
+        /** 位置行虽已删除，内容身份仍归属这些字节；留给 GC 续接或人工复核。 */
+        CONTENT_OWNED,
         /** 取分段锁超时：本轮未做任何判定与字节处置。 */
         UNDECIDED
     }
@@ -252,6 +260,9 @@ public class ReconcileService {
                 }
                 case CONFIRMED_NOT_MOVED -> found++;
                 case CONVERGED -> converged++;
+                case CONTENT_OWNED -> {
+                    // 内容仍拥有这些字节，不能计作孤儿或位置行收敛。
+                }
                 case UNDECIDED -> {
                     // 取锁超时：已记 notes（作业随之要求人工介入），不做任何字节处置
                 }
@@ -282,6 +293,9 @@ public class ReconcileService {
                 log.info("CANGSHU|job|reconcile|orphan|converged|storageKey={}", key);
                 return new OrphanSettlement(OrphanVerdict.CONVERGED, false);
             }
+            if (contentStillOwnsBytes(key, algorithm, notes)) {
+                return new OrphanSettlement(OrphanVerdict.CONTENT_OWNED, false);
+            }
             boolean trusted = files.digestMatchesKey(key);
             return new OrphanSettlement(quarantine(key, trusted, notes), !trusted);
         } catch (LockTimeoutException e) {
@@ -289,6 +303,46 @@ public class ReconcileService {
                     + " 秒），本轮未做任何字节处置（可重跑）：storageKey=" + key);
             return new OrphanSettlement(OrphanVerdict.UNDECIDED, false);
         }
+    }
+
+    /** GC 段一先删位置行，再由段二删字节；无位置行不能单独证明字节是孤儿。 */
+    private boolean contentStillOwnsBytes(String key, String algorithm, List<String> notes) {
+        List<ContentEntity> contents = contentMapper.selectList(Wrappers.<ContentEntity>lambdaQuery()
+                .eq(ContentEntity::getHashAlgorithm, algorithm)
+                .eq(ContentEntity::getDigest, digestOf(key)));
+        List<ContentEntity> owners = contents.stream()
+                .filter(content -> !"RECLAIMED".equals(content.getStatus()))
+                .toList();
+        if (owners.isEmpty()) {
+            return false;
+        }
+        String message;
+        if (owners.size() != 1 || contents.size() != 1) {
+            message = "同算法摘要存在多条内容身份，位置行缺失，原位保留待人工复核："
+                    + contents.stream().map(content -> content.getId() + ":" + content.getStatus()).toList();
+        } else {
+            ContentEntity owner = owners.get(0);
+            Long expectedSize = owner.getSizeBytes();
+            try {
+                long actualSize = Files.size(files.blobPath(key));
+                if (expectedSize == null || expectedSize != actualSize) {
+                    message = "内容身份大小与盘上字节不符，位置行缺失，原位保留待人工复核：contentId="
+                            + owner.getId() + "|status=" + owner.getStatus()
+                            + "|身份=" + expectedSize + "|盘上=" + actualSize;
+                } else if ("RECLAIMING".equals(owner.getStatus())) {
+                    message = "启动对账发现残留 RECLAIMING，位置行已删且字节仍在，原位保留待 GC 续接：contentId="
+                            + owner.getId();
+                } else {
+                    message = "内容身份仍未回收但位置行缺失，原位保留待人工复核：contentId="
+                            + owner.getId() + "|status=" + owner.getStatus();
+                }
+            } catch (IOException e) {
+                message = "读取内容字节大小失败，原位保留待人工复核：contentId=" + owner.getId()
+                        + "|status=" + owner.getStatus() + "|" + e.getMessage();
+            }
+        }
+        notes.add(message + "|storageKey=" + key);
+        return true;
     }
 
     /**
@@ -354,6 +408,7 @@ public class ReconcileService {
         int missing = 0;
         int sizeMismatch = 0;
         int malformedKeys = 0;
+        Set<UUID> reportedReclaiming = new HashSet<>();
         UUID afterId = new UUID(0L, 0L);
         while (true) {
             List<ContentLocationRow> page = locationMapper.pageContentWithLocation(afterId, PAGE_SIZE);
@@ -362,6 +417,10 @@ public class ReconcileService {
             }
             for (ContentLocationRow candidate : page) {
                 afterId = candidate.getContentId();
+                if ("RECLAIMING".equals(candidate.getStatus())) {
+                    reportReclaiming(candidate, notes, reportedReclaiming);
+                    continue;
+                }
                 if (!CONTENT_STATUS_READY.equals(candidate.getStatus())) {
                     continue;
                 }
@@ -427,6 +486,25 @@ public class ReconcileService {
                             + " 秒），本轮未判定（可重跑）：contentId=" + candidate.getContentId());
                 }
             }
+        }
+    }
+
+    /** 字节已缺的 GC 段三残留也须在启动对账报告；分页候选必须锁内重读确认。 */
+    private void reportReclaiming(ContentLocationRow candidate, List<String> notes,
+            Set<UUID> reportedReclaiming) {
+        String algorithm = lockIdentityOrNull(candidate, notes);
+        if (algorithm == null) {
+            return;
+        }
+        try (SegmentLockManager.Handle handle = locks.acquire(algorithm, candidate.getDigest())) {
+            List<ContentLocationRow> current = locationMapper.findContentLocation(candidate.getContentId());
+            if (current.stream().anyMatch(row -> "RECLAIMING".equals(row.getStatus()))
+                    && reportedReclaiming.add(candidate.getContentId())) {
+                notes.add("启动对账发现残留 RECLAIMING，待 GC 续接：contentId=" + candidate.getContentId()
+                        + (current.size() > 1 ? "|位置记录数异常=" + current.size() + "，需人工复核" : ""));
+            }
+        } catch (LockTimeoutException e) {
+            notes.add("回收中状态复核取分段锁超时，本轮未判定：contentId=" + candidate.getContentId());
         }
     }
 

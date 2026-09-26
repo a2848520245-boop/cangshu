@@ -49,6 +49,7 @@ $s = New-CompleteSummary; $s.negativeControls = @($s.negativeControls | Where-Ob
 $s = New-CompleteSummary; $s.negativeControls[0].turnedRed = $false; Assert-Exit 'negative did not turn red' $s 1
 $s = New-CompleteSummary; $s.leftoverDatabases = @('cangshu_task31_leftover'); Assert-Exit 'leftover database' $s 1
 $s = New-CompleteSummary; $s.databaseInventoryUnchanged = $false; Assert-Exit 'inventory anomaly' $s 1
+$s = New-CompleteSummary; $s | Add-Member -NotePropertyName artifactStable -NotePropertyValue $false; Assert-Exit 'jar changed during execution' $s 1
 $s = New-CompleteSummary; $s.results[0].checks = @(); Assert-Exit 'missing checks' $s 2
 $s = New-CompleteSummary; $s.results[0].PSObject.Properties.Remove('checks'); Assert-Exit 'absent checks field' $s 2
 $s = New-CompleteSummary; $s.results[0].checks[0].pass = 'true'; Assert-Exit 'nonboolean check' $s 2
@@ -125,4 +126,4 @@ if (@($parseErrors).Count -gt 0 -or $referenceBranches.Count -ne 1 -or $runnerBr
     throw 'matrix GC reference branch must skip runner registration before missing-runner branch'
 }
 Write-Host 'PASS matrix GC reference control flow AST'
-Write-Host 'task31-summary synthetic cases: 46 passed'
+Write-Host 'task31-summary synthetic cases: 47 passed'

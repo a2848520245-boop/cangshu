@@ -1,0 +1,1 @@
+PASS task31 UploadResponse real DTO shape, legacy rejection, DB identity join

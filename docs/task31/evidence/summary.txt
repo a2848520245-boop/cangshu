@@ -1,0 +1,48 @@
+PASS complete exit=0
+PASS assertion failure exit=1
+PASS execution exception exit=1
+PASS unimplemented exit=2
+PASS too few runs exit=2
+PASS missing N/A reason exit=2
+PASS missing GC reference exit=2
+PASS missing negative control exit=2
+PASS negative did not turn red exit=1
+PASS leftover database exit=1
+PASS inventory anomaly exit=1
+PASS jar changed during execution exit=1
+PASS missing checks exit=2
+PASS absent checks field exit=2
+PASS nonboolean check exit=2
+PASS duplicate snapshot exit=2
+PASS missing snapshot file exit=2
+PASS duplicate run exit=2
+PASS wrong requested cell exit=2
+PASS fake GC reference exit=2
+PASS cross-cell duplicate database exit=2
+PASS cross-cell duplicate root exit=2
+PASS extra duplicate record exit=2
+PASS unknown record exit=2
+PASS string snapshot evidence exit=2
+PASS string block evidence exit=2
+PASS string inventory evidence exit=1
+PASS string negative verdict exit=2
+PASS missing negative file exit=2
+PASS string negative file flag exit=2
+PASS repeat valid negative record exit=0
+PASS extra N/A record exit=2
+PASS extra GC record exit=2
+PASS empty summary exit=1
+PASS empty check object exit=2
+PASS absent run field exit=2
+PASS absent database field exit=2
+PASS absent root field exit=2
+PASS normalized root duplicate exit=2
+PASS slash-equivalent root duplicate exit=2
+PASS unknown negative type exit=2
+PASS repeat negative failure exit=1
+PASS empty record object exit=2
+PASS absent negative evidence field exit=2
+PASS snapshot/block leaf/nonempty/missing/directory inspection
+PASS supplemental leaf/nonempty/missing file inspection
+PASS matrix GC reference control flow AST
+task31-summary synthetic cases: 47 passed

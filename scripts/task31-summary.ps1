@@ -44,6 +44,9 @@ function Get-Task31Decision {
     $expectedCells = @($required) + @($notApplicable) + @($gcReferences.Keys)
 
     if ($Summary.databaseInventoryUnchanged -isnot [bool] -or $Summary.databaseInventoryUnchanged -ne $true) { $failures.Add('数据库实例清单前后不一致或未核对') }
+    if ($Summary.PSObject.Properties.Name -contains 'artifactStable' -and $Summary.artifactStable -ne $true) {
+        $failures.Add('执行期 jar SHA-256 与已核构建制品不一致')
+    }
     if (@($Summary.leftoverDatabases).Count -gt 0) { $failures.Add('存在残留隔离库') }
     $requested = @($Summary.requestedCells | Where-Object { $null -ne $_ })
     if ($requested.Count -ne 28 -or @($requested | Select-Object -Unique).Count -ne 28 -or

@@ -1,0 +1,7 @@
+verify-task31-matrix.ps1 errors=0
+task31-summary.ps1 errors=0
+task31-negative-controls.ps1 errors=0
+test-task31-summary.ps1 errors=0
+test-task31-negative-controls.ps1 errors=0
+test-task31-upload-contract.ps1 errors=0
+test-task31-retry.ps1 errors=0

@@ -1,0 +1,90 @@
+Picked up JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=E:\AgentWork\CangShu\_status\task31-gc-fix-20260926\tmp
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------------< com.cangshu:cangshu >-------------------------
+[INFO] Building cangshu 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- exec:3.5.1:exec (build-frontend) @ cangshu ---
+
+added 50 packages in 2s
+
+> cangshu-web@0.1.0 build
+> vue-tsc --noEmit && vite build
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 12 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  0.37 kB │ gzip:  0.29 kB
+dist/assets/index-cGw4Xkej.css   2.15 kB │ gzip:  0.93 kB
+dist/assets/index-DqcIvpKM.js   74.99 kB │ gzip: 29.70 kB
+✓ built in 907ms
+(node:29872) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[INFO]
+[INFO] --- resources:3.3.1:resources (default-resources) @ cangshu ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO]
+[INFO] --- resources:3.3.1:copy-resources (copy-frontend) @ cangshu ---
+[INFO] Copying 3 resources from frontend\dist to target\classes\static
+[INFO]
+[INFO] --- compiler:3.14.1:compile (default-compile) @ cangshu ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 55 source files with javac [debug parameters release 21] to target\classes
+[INFO]
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ cangshu ---
+[INFO] Copying 2 resources from src\test\resources to target\test-classes
+[INFO]
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ cangshu ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 32 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /E:/AgentWork/CangShu/cangshu/src/test/java/com/cangshu/catalog/CatalogServiceTests.java: 某些输入文件使用了未经检查或不安全的操作。
+[INFO] /E:/AgentWork/CangShu/cangshu/src/test/java/com/cangshu/catalog/CatalogServiceTests.java: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ cangshu ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+Picked up JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=E:\AgentWork\CangShu\_status\task31-gc-fix-20260926\tmp
+[INFO] Running com.cangshu.job.ReconcileReclaimingTests
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (E:\AgentWork\CangShu\cangshu\var\m2repo\net\bytebuddy\byte-buddy-agent\1.17.8\byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:00:56.585 [main] WARN com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|orphan|storageKey=sha256/a7/bf/a7bff7a530292ac1013fd8ff7170f099ee4ceeb6c72f765ba5f7543d83c0b063|trusted=true
+13:00:56.601 [main] INFO com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|reconcile|tempDeleted=0|orphanFound=1|orphanQuarantined=1|orphanUntrusted=0|orphanConverged=0|contentsChecked=0|bytesMissing=0|sizeMismatch=0|malformedKeys=0|needsAttention=false
+13:00:56.632 [main] INFO com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|reconcile|tempDeleted=0|orphanFound=0|orphanQuarantined=0|orphanUntrusted=0|orphanConverged=0|contentsChecked=0|bytesMissing=0|sizeMismatch=0|malformedKeys=0|needsAttention=true
+13:00:56.632 [main] WARN com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|alert|内容身份仍未回收但位置行缺失，原位保留待人工复核：contentId=4a11ef68-68ad-4cb9-bcd2-cf7445492fc6|status=READY|storageKey=sha256/a4/44/a444df2377459a68b3921d4e8e7764deb855fc29a99891c7319ca01fb319d9c9
+13:00:56.647 [main] INFO com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|reconcile|tempDeleted=0|orphanFound=0|orphanQuarantined=0|orphanUntrusted=0|orphanConverged=0|contentsChecked=0|bytesMissing=0|sizeMismatch=0|malformedKeys=0|needsAttention=true
+13:00:56.647 [main] WARN com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|alert|内容身份大小与盘上字节不符，位置行缺失，原位保留待人工复核：contentId=cc7e392d-58c0-4875-a090-ad1397f787f4|status=RECLAIMING|身份=14|盘上=13|storageKey=sha256/15/4b/154b3180ff8f2e2dbb9565845a8801b491e349a9842260ad5d93272b59e5e7fe
+13:00:56.660 [main] INFO com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|reconcile|tempDeleted=0|orphanFound=0|orphanQuarantined=0|orphanUntrusted=0|orphanConverged=0|contentsChecked=0|bytesMissing=0|sizeMismatch=0|malformedKeys=0|needsAttention=true
+13:00:56.660 [main] WARN com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|alert|同算法摘要存在多条内容身份，位置行缺失，原位保留待人工复核：[2e31bbf1-6030-4e61-89a9-448cf559b3a4:RECLAIMING, 137ab552-5dd3-4175-ae72-5c65bc19d429:RECLAIMED]|storageKey=sha256/00/de/00de0fa30a30a18a7571f5096d0a1cbe4e57e1550b8fe796aa3b7ff23686d735
+13:00:56.672 [main] INFO com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|reconcile|tempDeleted=0|orphanFound=0|orphanQuarantined=0|orphanUntrusted=0|orphanConverged=0|contentsChecked=0|bytesMissing=0|sizeMismatch=0|malformedKeys=0|needsAttention=true
+13:00:56.672 [main] WARN com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|alert|启动对账发现残留 RECLAIMING，待 GC 续接：contentId=a666c077-9228-4fd9-aaad-4510ec634cc4
+13:00:56.682 [main] INFO com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|reconcile|tempDeleted=0|orphanFound=0|orphanQuarantined=0|orphanUntrusted=0|orphanConverged=0|contentsChecked=0|bytesMissing=0|sizeMismatch=0|malformedKeys=0|needsAttention=true
+13:00:56.682 [main] WARN com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|alert|启动对账发现残留 RECLAIMING，位置行已删且字节仍在，原位保留待 GC 续接：contentId=52aad807-7ab8-4ff3-985a-1d73fb4f28b0|storageKey=sha256/06/82/0682c5f2076f099c34cfdd15a9e063849ed437a49677e6fcc5b4198c76575be5
+13:00:56.700 [main] INFO com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|reconcile|tempDeleted=0|orphanFound=0|orphanQuarantined=0|orphanUntrusted=0|orphanConverged=0|contentsChecked=0|bytesMissing=0|sizeMismatch=0|malformedKeys=0|needsAttention=true
+13:00:56.700 [main] WARN com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|alert|启动对账发现残留 RECLAIMING，待 GC 续接：contentId=7afa1f37-adbf-437a-9751-a2e7b5a325cb|位置记录数异常=2，需人工复核
+13:00:56.713 [main] WARN com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|orphan|storageKey=sha256/69/e7/69e783ceb0c4ec87679ee25069098928e6d8b4023dd040093580834eb8984168|trusted=true
+13:00:56.713 [main] INFO com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|reconcile|tempDeleted=0|orphanFound=1|orphanQuarantined=1|orphanUntrusted=0|orphanConverged=0|contentsChecked=0|bytesMissing=0|sizeMismatch=0|malformedKeys=0|needsAttention=false
+13:00:56.724 [main] INFO com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|reconcile|tempDeleted=0|orphanFound=0|orphanQuarantined=0|orphanUntrusted=0|orphanConverged=0|contentsChecked=0|bytesMissing=0|sizeMismatch=0|malformedKeys=0|needsAttention=true
+13:00:56.725 [main] WARN com.cangshu.job.ReconcileService -- CANGSHU|job|reconcile|alert|启动对账发现残留 RECLAIMING，位置行已删且字节仍在，原位保留待 GC 续接：contentId=f0025a81-5a49-49c8-881b-49836779568f|storageKey=sha256/2d/34/2d3444c948e913f694bbb7ac41a5b369b52f328740dc6d497ef1e40e65152ba7
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.906 s -- in com.cangshu.job.ReconcileReclaimingTests
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  30.318 s
+[INFO] Finished at: 2026-09-26T13:00:56+08:00
+[INFO] ------------------------------------------------------------------------
