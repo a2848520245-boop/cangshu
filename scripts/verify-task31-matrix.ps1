@@ -23,14 +23,14 @@
     均在本格流程内自建自删，且不写 schema_version 台账。
 
 .PARAMETER Cells
-    要执行的格子，形如 '1-5'（点 5 类 ①）；可多值或用 -Cells all（默认 '1-5'）。
+    要执行的格子，形如 '5-1'（点 5 类 ①）；可多值或用 -Cells all（默认 '5-1'）。
     已定义但本阶段未实现执行器的格子会显式报错（未实现 ≠ 通过）。
 
 .EXAMPLE
-    pwsh -File scripts/verify-task31-matrix.ps1 -Cells 1-5
+    pwsh -File scripts/verify-task31-matrix.ps1 -Cells 5-1
 
 .EXAMPLE
-    pwsh -File scripts/verify-task31-matrix.ps1 -Cells 1-4 -Runs 1 -RateLimit 4k
+    pwsh -File scripts/verify-task31-matrix.ps1 -Cells 4-1 -Runs 1 -RateLimit 4k
 
 .NOTES
     凭据来自 src/main/resources/application.yml 的既有默认值，可被 CANGSHU_DB_USER /
@@ -39,7 +39,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string[]] $Cells = @('1-5'),
+    [string[]] $Cells = @('5-1'),
     [int] $Runs = 3,
     [string] $DatabasePrefix = 'cangshu_task31',
     [string] $DatabaseHost = '127.0.0.1',
@@ -51,6 +51,7 @@ param(
     [int] $BlockWaitSeconds = 60,
     [string] $RateLimit = '8k',
     [int] $PayloadBytes = 65536,
+    [string] $SupplementalEvidenceFile = '',
     [switch] $KeepDatabase,
     [switch] $SkipBuild
 )
@@ -61,6 +62,7 @@ if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction Sile
 }
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+. (Join-Path $PSScriptRoot 'task31-summary.ps1')
 function Resolve-From([string] $Path) {
     if ([System.IO.Path]::IsPathRooted($Path)) { return [System.IO.Path]::GetFullPath($Path) }
     return [System.IO.Path]::GetFullPath((Join-Path $repoRoot $Path))
@@ -613,7 +615,7 @@ function Get-CellDefinition {
 function Resolve-RequestedCells {
     param([string[]] $Requested)
     if ($Requested.Count -eq 1 -and $Requested[0] -eq 'all') {
-        return @($cellRegistry | Where-Object { $_.Runner } | ForEach-Object { $_.Id })
+        return @($cellRegistry | ForEach-Object { $_.Id })
     }
     foreach ($cellId in $Requested) { Get-CellDefinition -CellId $cellId | Out-Null }
     return $Requested
@@ -929,6 +931,10 @@ foreach ($cellId in $requestedCells) {
         Write-Host ('[task31-matrix] ' + $cellId + ' → 不适用：' + $definition.Reason)
         continue
     }
+    if ($cellId -in @('6-1','7-1')) {
+        Write-Host ('[task31-matrix] ' + $cellId + ' → 引用④类同点三次GC证据（由汇总门核对）')
+        continue
+    }
     if (-not $cellRunners.ContainsKey($cellId)) {
         $unimplemented += [pscustomobject]@{ CellId = $cellId; Reach = $definition.Reach; Injection = $definition.Inj }
         Write-Host ('[task31-matrix] ' + $cellId + ' → 已定义但本阶段未实现执行器（未实现 ≠ 通过）')
@@ -954,7 +960,13 @@ foreach ($cellId in $requestedCells) {
             }
             Write-Host ('[task31-matrix] ' + $cellId + ' r' + $run + ' 异常：' + $_.Exception.Message)
         } finally {
-            if (-not $KeepDatabase) { Remove-IsolatedDatabase -DatabaseName $databaseName }
+            if (-not $KeepDatabase) {
+                try { Remove-IsolatedDatabase -DatabaseName $databaseName }
+                catch {
+                    $result.Verdict = '执行异常'
+                    $result.FailedChecks = @($result.FailedChecks) + @('隔离库清理失败：' + $_.Exception.Message)
+                }
+            }
         }
         $record = [pscustomobject]@{
             cellId = $result.CellId; point = $result.Point; class = $result.Class; run = $result.Run
@@ -966,6 +978,10 @@ foreach ($cellId in $requestedCells) {
             httpCode = $result.HttpCode; payloadDigest = $result.Digest
             blockEvidence = $result.BlockEvidence
             snapshots = $result.SnapshotFiles
+            evidenceFilesPresent = (@($result.SnapshotFiles).Count -eq 4 -and
+                @($result.SnapshotFiles | Where-Object { -not (Test-Task31EvidenceFile -Path $_) }).Count -eq 0)
+            blockEvidencePresent = (-not [string]::IsNullOrWhiteSpace([string]$result.BlockEvidence) -and
+                (Test-Task31EvidenceFile -Path $result.BlockEvidence))
             checks = @($result.Checks | ForEach-Object { [pscustomobject]@{ name = $_.Name; pass = $_.Pass; detail = $_.Detail } })
             failedChecks = $result.FailedChecks
             executedAt = (Get-Date).ToUniversalTime().ToString('o')
@@ -982,8 +998,15 @@ $databaseInventoryAfter = Get-DatabaseInventory
 Set-Content -LiteralPath (Join-Path $outputRoot 'db-inventory-after.txt') -Value $databaseInventoryAfter -Encoding UTF8
 $inventoryDifference = @(Compare-Object -ReferenceObject $databaseInventoryBefore -DifferenceObject $databaseInventoryAfter)
 
+$supplemental = if ($SupplementalEvidenceFile) {
+    $supplementalPath = Resolve-From $SupplementalEvidenceFile
+    Get-Content -LiteralPath $supplementalPath -Raw -Encoding UTF8 | ConvertFrom-Json
+} else { [pscustomobject]@{ gcReferences = @(); negativeControls = @() } }
+$negativeControls = if ($SupplementalEvidenceFile) {
+    Get-Task31NegativeControls -Controls $supplemental.negativeControls -BaseDirectory (Split-Path -Parent $supplementalPath)
+} else { @() }
 $summary = [pscustomobject]@{
-    task = '31'; phase = 'first-cell smoke (08 §3.1)'
+    task = '31'; phase = 'partial matrix execution (08 §3.1)'
     executedAt = (Get-Date).ToUniversalTime().ToString('o')
     head = $headCommit; worktreeDirty = ($worktreeDirty.Count -gt 0); worktreeDirtyFiles = $worktreeDirty
     payload = [pscustomobject]@{ path = $payload.Path; sizeBytes = $payload.SizeBytes; sha256 = $payload.Digest }
@@ -991,10 +1014,14 @@ $summary = [pscustomobject]@{
     results = $results
     notApplicable = $notApplicable
     unimplementedCells = $unimplemented
+    gcReferences = @($supplemental.gcReferences)
+    negativeControls = $negativeControls
     databaseInventoryUnchanged = ($inventoryDifference.Count -eq 0)
     leftoverDatabases = @(($databaseInventoryAfter | Where-Object { $_ -like ($DatabasePrefix + '*') }))
 }
-Set-Content -LiteralPath (Join-Path $outputRoot 'matrix-summary.json') -Value ($summary | ConvertTo-Json -Depth 10) -Encoding UTF8
+$decision = Get-Task31Decision -Summary $summary
+$summary | Add-Member -NotePropertyName decision -NotePropertyValue $decision
+Set-Content -LiteralPath (Join-Path $outputRoot 'matrix-summary.json') -Value ($summary | ConvertTo-Json -Depth 12) -Encoding UTF8
 
 # 单元格报告（三快照对比 ＋ 阻塞点证据 ＋ 判定）
 foreach ($cellGroup in ($results | Group-Object -Property cellId)) {
@@ -1049,3 +1076,6 @@ foreach ($record in $results) {
 if ($unimplemented.Count -gt 0) {
     Write-Host ('[task31-matrix] 未实现执行器的格子（未实现 ≠ 通过）：' + (($unimplemented | ForEach-Object { $_.CellId }) -join '、'))
 }
+Write-Host ('[task31-matrix] ACC-G4=' + $decision.status + ' exit=' + $decision.exitCode +
+    '；失败=' + @($decision.failures).Count + '；缺项=' + @($decision.missing).Count)
+exit $decision.exitCode
