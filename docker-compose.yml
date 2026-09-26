@@ -1,13 +1,14 @@
 # 仓鼠 M1 交付态编排（07-运行手册 §3 交付轨）
 #
-# 两轨一致（不变量，07 §3）：PG 大版本 17；DDL 与迁移语义（人工执行 V1、脚本只增不改、
+# 两轨一致（不变量，07 §3）：PG 大版本 17；DDL 与迁移语义（人工按序执行当前全部批准脚本、脚本只增不改、
 # 应用不在启动时自动改表）；内容键 sha256/ab/cd/<digest>；配置语义（差异只在注入方式）。
 #
 # 首次初始化顺序（禁空库降级，07 §3）：
 #   1) docker compose up -d db        （PG17 ＋ named volume cangshu-pgdata ＋ 固定 collation）
-#   2) bash scripts/compose-migrate.sh （人工执行 db/migration/V1__init.sql，DDL 与记账同事务）
-#   3) docker compose up -d app        （启动应用；应用绝不自己建表）
-#   4) 启动只读核对→ 不符即退出码 3（任务 30 落地后生效，无降级开关）
+#   2) bash scripts/compose-migrate.sh （人工按序执行当前全部脚本，现 V1→V2；DDL 与记账同事务）
+#   3) 按 README clean package 构建 JAR（宿主需 Node 22/npm 10）
+#   4) docker compose up -d app        （启动应用；应用绝不自己建表）
+#   5) 启动只读核对→ 不符即退出码 3（无降级开关）
 #
 # 命名口径：PG named volume = cangshu-pgdata；字节宿主目录 = ./cangshu-blobs；容器内挂载点 = /data。
 # 字节卷与 PG 卷必须分离——「换字节根」只动字节、不动数据库。

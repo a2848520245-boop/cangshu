@@ -22,5 +22,5 @@ COPY db/migration /app/db/migration
 VOLUME ["/data"]
 EXPOSE 8080
 
-# 单写者与迁移核对落地后（任务 29／30），启动失败会以退出码 2／3 结束；此处不做任何降级兜底
+# 单写者与迁移只读核对已由应用启动门执行；失败退出码 2／3，此处不做任何降级兜底
 ENTRYPOINT ["java", "-jar", "/app/cangshu.jar"]

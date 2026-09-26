@@ -10,3 +10,4 @@
 db/migration/*.sql text eol=lf
 scripts/** text eol=lf
 *.sh text eol=lf
+docs/task18/active-doc-snapshots/*.md -text

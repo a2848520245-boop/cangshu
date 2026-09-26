@@ -26,8 +26,7 @@ import org.junit.jupiter.api.Test;
  * 行。局限同样明确：只看显式 import（含 static import），同包内引用、完全限定名内联
  * 与反射不在覆盖范围内——它挡的是「顺手少写一个分层」的常态，不是恶意绕过。
  *
- * <p>已登记例外（04 例外清单，不在本测试的禁止集内）：{@code storage → config.WriterGate}
- * ——storage 只在「隔离键不得是单写者门协议文件」一处引用门协议常量。
+ * <p>单写者门协议文件名常量由 config 装配层传入 storage；当前 storage 无 config 导入。
  */
 class DependencyStructureTests {
 

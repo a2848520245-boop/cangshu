@@ -16,8 +16,8 @@ import org.springframework.context.annotation.Configuration;
  * 相对路径按进程工作目录解析、去尾随分隔符。不引入第二套规则，避免「日志里的数据根」
  * 与「实际写入的数据根」不一致。
  *
- * <p>仍然成立的例外：storage 只在「隔离键不得是单写者门协议文件」一处引用
- * {@link WriterGate#LOCK_FILE_NAME}（04 例外清单登记项）。启动门本身仍由 config 实现。
+ * <p>单写者门协议文件名常量由本装配层传入 {@link FileStore}；storage 不导入 config。
+ * 启动门本身仍由 config 实现。
  */
 @Configuration
 public class StorageConfiguration {
