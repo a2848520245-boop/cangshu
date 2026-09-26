@@ -15,7 +15,7 @@ M1 含 Vue 3、TypeScript、Vite 最小浏览器界面。多用户、外网、�
 - 前端开发：在 `frontend` 执行 `npm ci --registry=https://registry.npmjs.org --cache=../target/npm-cache` 后 `npm run dev`，Vite 将 `/api` 代理到本机 8080。Mock 浏览器回归执行 `npm run test:mock`，其结果只证明前端交互与 API 契约，不是 ACC-UI 真实后端端到端验收。
 - 前端纯单测：`cd frontend && npm run test:unit`，验证非 JSON 错误、204 响应及安全预览类型。`npm run test:mock` 自行启动并收束测试 Vite，真实 Chromium mock 报告在 `target/ui-mock-*`；无数据库。
 - task31 纯汇总回归：`pwsh -NoProfile -File scripts/test-task31-summary.ps1`，使用合成 JSON 验证退出码 0＝完整通过、1＝明确失败／异常、2＝证据不完整。`verify-task31-matrix.ps1` 已覆盖 14 个独立可达格的执行入口；正式三轮及负对照仍待隔离 VM 验收，不能当作 ACC-G4 全部通过。此回归不会建库或强杀进程。
-- CI 的 PostgreSQL＋真实浏览器门禁属于任务 40 的在途交付，当前不据其配置宣称已运行或通过。任务 39 的 mock 浏览器回归只证明前端交互；ACC-UI 仍需隔离 VM 中以真实 Spring Boot、PostgreSQL 和浏览器独立留证。
+- 任务 40 的自动无数据库 `pr-gate` 已在公开／私有交付分支的本轮 push 上实际通过；手动 PostgreSQL＋真实浏览器 `real-e2e` 均跳过，分支保护与正式 ACC-CI 仍未验。任务 39 的 mock 浏览器回归只证明前端交互；ACC-UI 仍需隔离 VM 中以真实 Spring Boot、PostgreSQL 和浏览器独立留证。
 - 健康检查：`GET /actuator/health` → `{"status":"UP"}`（引入数据源后，健康概要含数据库可达性）。
 - 最小接口：`GET /api/health` → 服务状态与六个定稿配置键的生效值（数据根为解析后的规范绝对路径）；
   启动日志同时输出一行 `CANGSHU|config|dataRoot=…` 记录解析结果。
@@ -52,12 +52,17 @@ M1 含 Vue 3、TypeScript、Vite 最小浏览器界面。多用户、外网、�
 
 ## 演示与自检（任务 18）
 
-`bash scripts/demo-m1.sh [端口]` —— 走**文档规定的路径**（人工建库＋人工执行 `V1`／`V2` 迁移 → 起 serve →
-逐端点真实 HTTP 请求 → 停服），产出逐端点状态与汇总，**未实现端点会显式标注属任务 6／28**，不会当成已具备。
-脚本自带期望状态表，实际与预期不符即非零退出。
+`bash scripts/demo-m1.sh [端口]` 使用已人工建库并执行 `V1`／`V2` 迁移的 PostgreSQL，默认 `clean package` 构建 JAR，启动 serve，
+对八端点 3.1–3.8 发出真实 HTTP 请求后停服。脚本包含软删、回收站列表、还原和 `confirm=true` 清空；
+逐请求核对 HTTP 状态码，另核对健康 `UP`、两次上传的资源／内容身份及去重字段、下载字节摘要。
+运行成功仍不单独证明完整响应字段、数据库持久化或全部验收负例。默认数据根与日志分别在
+`var/demo-data-root`、`var/demo-logs`，不会被 `clean` 删除；若存在旧 `target/demo-data-root`，脚本会在构建前拒绝继续并保留原目录。
+脚本也会拒绝位于 `target` 内的数据根／日志路径和已占用的端口，并核对本轮进程与 `/api/health` 回显的数据根；前置失败即停止，不会继续执行清空。
 
 - 前置：`JAVA_HOME` 指向 JDK 21；本机 PostgreSQL 17；演示库（默认 `cangshu_m1demo`）已按
   `db/migration/` 人工初始化——**禁空库降级**，不接受应用自动建表。
+- 脚本会在所连数据库执行回收站清空；只在受控隔离的演示库与数据根运行，先核对 `CANGSHU_DB_URL` 等配置。
+- 截至 2026-09-26 仅完成脚本静态检查与纯替身回归，未运行真实演示。真实 HTTP、数据库状态与浏览器验收仍按《08-M1-验收规范》独立留证。
 - 本脚本是「演示与交付」材料，**不是**《08-M1-验收规范》§2 的验收证据本身；验收证据需按 §6 另行成包。
 
 ## 工作入口

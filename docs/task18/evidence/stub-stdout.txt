@@ -1,0 +1,12 @@
+good: exit=0
+missing_id: exit=1
+bad_dedup: exit=1
+bad_download: exit=1
+bad_hash: exit=1
+health_down: exit=1
+wrong_root: exit=1
+data_in_target: rejected before Maven
+log_in_target: rejected before Maven
+legacy_data: rejected before Maven
+target_redirect: rejected before Maven
+occupied: rejected before Maven
