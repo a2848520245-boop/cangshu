@@ -1,0 +1,9 @@
+Task 40 first automatic push run, code 2235ca7fad741fbaf78f3009b82242e22eeddd1e
+Public: https://github.com/a2848520245-boop/cangshu/actions/runs/36222550836
+Private: repository a2848520245-boop/cangshu-private-backup, run 36222518430
+Both: pr-gate=failure; real-e2e=skipped.
+Failed step: Backend compile and database-free unit tests.
+Public run summary: 168 tests, 0 failures, 2 errors, 0 skipped.
+Errors: TrashRestoreEmptyTests.emptyTrashGroupsRowsByContent; TrashRestoreEmptyTests.restoreClearsTimestampsAndSyncsContent.
+Cause shown in run log: MybatisPlus can not find lambda cache for ResourceEntity.
+This is an extracted result summary, not a full Actions log. Read the runs above for original evidence.

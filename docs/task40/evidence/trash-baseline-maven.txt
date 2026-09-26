@@ -1,0 +1,132 @@
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------------< com.cangshu:cangshu >-------------------------
+[INFO] Building cangshu 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- exec:3.5.1:exec (build-frontend) @ cangshu ---
+
+added 50 packages in 4s
+
+> cangshu-web@0.1.0 build
+> vue-tsc --noEmit && vite build
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 12 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  0.37 kB │ gzip:  0.29 kB
+dist/assets/index-cGw4Xkej.css   2.15 kB │ gzip:  0.93 kB
+dist/assets/index-ODjOKCOT.js   75.31 kB │ gzip: 29.76 kB
+✓ built in 1.40s
+(node:23464) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[INFO]
+[INFO] --- resources:3.3.1:resources (default-resources) @ cangshu ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO]
+[INFO] --- resources:3.3.1:copy-resources (copy-frontend) @ cangshu ---
+[INFO] Copying 3 resources from frontend\dist to target\classes\static
+[INFO]
+[INFO] --- compiler:3.14.1:compile (default-compile) @ cangshu ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ cangshu ---
+[INFO] Copying 2 resources from src\test\resources to target\test-classes
+[INFO]
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ cangshu ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ cangshu ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.cangshu.catalog.TrashRestoreEmptyTests
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (E:\AgentWork\CangShu\cangshu\var\m2repo\net\bytebuddy\byte-buddy-agent\1.17.8\byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+14:06:40.881 [main] ERROR com.cangshu.catalog.TrashService -- CANGSHU|alert|resourceId=01a0dc52-acde-784a-b4c3-c79dcf9ec8a2 字节大小与内容身份不符（盘上 8 / 身份 16），拒绝还原
+14:06:40.939 [main] ERROR com.cangshu.catalog.TrashService -- CANGSHU|alert|resourceId=01a0dc52-ad2a-7ecd-ac50-73970ec66cb7 contentId=01a0dc52-ad2a-7ddd-86cf-6019cbef8228 字节缺失（存储键 sha256/ab/ab/abababababababababababababababababababababababababababababababab），拒绝还原
+14:06:40.946 [main] INFO com.cangshu.catalog.TrashService -- CANGSHU|trash|resourceId=01a0dc52-ad31-7a74-8af8-43f84ddab4de|restore=alreadyActive
+[ERROR] Tests run: 8, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 9.519 s <<< FAILURE! -- in com.cangshu.catalog.TrashRestoreEmptyTests
+[ERROR] com.cangshu.catalog.TrashRestoreEmptyTests.restoreClearsTimestampsAndSyncsContent -- Time elapsed: 9.398 s <<< ERROR!
+com.baomidou.mybatisplus.core.exceptions.MybatisPlusException: can not find lambda cache for this entity [com.cangshu.catalog.entity.ResourceEntity]
+	at com.baomidou.mybatisplus.core.toolkit.ExceptionUtils.mpe(ExceptionUtils.java:49)
+	at com.baomidou.mybatisplus.core.toolkit.Assert.isTrue(Assert.java:38)
+	at com.baomidou.mybatisplus.core.toolkit.Assert.notNull(Assert.java:72)
+	at com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper.tryInitCache(AbstractLambdaWrapper.java:147)
+	at com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper.getColumnCache(AbstractLambdaWrapper.java:136)
+	at com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper.columnToString(AbstractLambdaWrapper.java:66)
+	at com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper.columnToString(AbstractLambdaWrapper.java:62)
+	at com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.lambda$set$0(LambdaUpdateWrapper.java:82)
+	at com.baomidou.mybatisplus.core.conditions.AbstractWrapper.maybeDo(AbstractWrapper.java:561)
+	at com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.set(LambdaUpdateWrapper.java:80)
+	at com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.set(LambdaUpdateWrapper.java:38)
+	at com.baomidou.mybatisplus.core.conditions.update.Update.set(Update.java:46)
+	at com.baomidou.mybatisplus.core.conditions.update.Update.set(Update.java:34)
+	at com.cangshu.catalog.TrashService.restoreLocked(TrashService.java:278)
+	at com.cangshu.catalog.TrashService.lambda$restore$3(TrashService.java:254)
+	at org.springframework.transaction.support.TransactionTemplate.execute(TransactionTemplate.java:140)
+	at com.cangshu.catalog.TrashService.restore(TrashService.java:254)
+	at com.cangshu.catalog.TrashRestoreEmptyTests.restoreClearsTimestampsAndSyncsContent(TrashRestoreEmptyTests.java:132)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+[ERROR] com.cangshu.catalog.TrashRestoreEmptyTests.emptyTrashGroupsRowsByContent -- Time elapsed: 0.011 s <<< ERROR!
+com.baomidou.mybatisplus.core.exceptions.MybatisPlusException: can not find lambda cache for this entity [com.cangshu.catalog.entity.ResourceEntity]
+	at com.baomidou.mybatisplus.core.toolkit.ExceptionUtils.mpe(ExceptionUtils.java:49)
+	at com.baomidou.mybatisplus.core.toolkit.Assert.isTrue(Assert.java:38)
+	at com.baomidou.mybatisplus.core.toolkit.Assert.notNull(Assert.java:72)
+	at com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper.tryInitCache(AbstractLambdaWrapper.java:147)
+	at com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper.getColumnCache(AbstractLambdaWrapper.java:136)
+	at com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper.columnToMapping(AbstractLambdaWrapper.java:72)
+	at com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper.columnToMapping(AbstractLambdaWrapper.java:39)
+	at com.baomidou.mybatisplus.core.conditions.AbstractWrapper.lambda$in$10(AbstractWrapper.java:309)
+	at com.baomidou.mybatisplus.core.conditions.AbstractWrapper.maybeDo(AbstractWrapper.java:561)
+	at com.baomidou.mybatisplus.core.conditions.AbstractWrapper.in(AbstractWrapper.java:309)
+	at com.baomidou.mybatisplus.core.conditions.AbstractWrapper.in(AbstractWrapper.java:49)
+	at com.baomidou.mybatisplus.core.conditions.interfaces.Func.in(Func.java:88)
+	at com.cangshu.catalog.TrashService.hardDeleteLocked(TrashService.java:221)
+	at com.cangshu.catalog.TrashService.lambda$hardDelete$2(TrashService.java:212)
+	at org.springframework.transaction.support.TransactionTemplate.execute(TransactionTemplate.java:140)
+	at com.cangshu.catalog.TrashService.hardDelete(TrashService.java:212)
+	at com.cangshu.catalog.TrashService.emptyTrash(TrashService.java:186)
+	at com.cangshu.catalog.TrashRestoreEmptyTests.emptyTrashGroupsRowsByContent(TrashRestoreEmptyTests.java:101)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+[INFO]
+[INFO] Results:
+[INFO]
+[ERROR] Errors:
+[ERROR]   TrashRestoreEmptyTests.emptyTrashGroupsRowsByContent:101 » MybatisPlus can not find lambda cache for this entity [com.cangshu.catalog.entity.ResourceEntity]
+[ERROR]   TrashRestoreEmptyTests.restoreClearsTimestampsAndSyncsContent:132 » MybatisPlus can not find lambda cache for this entity [com.cangshu.catalog.entity.ResourceEntity]
+[INFO]
+[ERROR] Tests run: 8, Failures: 0, Errors: 2, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  35.564 s
+[INFO] Finished at: 2026-09-26T14:06:41+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project cangshu:
+[ERROR]
+[ERROR] See E:\AgentWork\CangShu\cangshu\target\surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR]
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR]
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

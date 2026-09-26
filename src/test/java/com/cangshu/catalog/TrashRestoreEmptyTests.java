@@ -13,6 +13,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cangshu.catalog.entity.ContentEntity;
 import com.cangshu.catalog.entity.LocationEntity;
 import com.cangshu.catalog.entity.ResourceEntity;
@@ -21,6 +23,7 @@ import com.cangshu.catalog.mapper.LocationMapper;
 import com.cangshu.catalog.mapper.ResourceMapper;
 import com.cangshu.catalog.mapper.TrashRow;
 import com.cangshu.common.UuidV7;
+import com.cangshu.common.mybatis.CangshuUuidTypeHandler;
 import com.cangshu.config.CangshuProperties;
 import com.cangshu.config.WriterGate;
 import com.cangshu.storage.FileStore;
@@ -32,6 +35,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +51,16 @@ import org.junit.jupiter.api.io.TempDir;
  * {@code api.TrashEndpointsIntegrationTests} 在真实 PostgreSQL 上断言。
  */
 class TrashRestoreEmptyTests {
+
+    @BeforeAll
+    static void initializeLambdaMetadata() {
+        // Mockito mappers do not pass through MyBatis-Plus mapper initialization.
+        // Register the same entity metadata needed by the production lambda wrappers.
+        MybatisConfiguration configuration = new MybatisConfiguration();
+        configuration.getTypeHandlerRegistry().register(UUID.class, CangshuUuidTypeHandler.class);
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "");
+        TableInfoHelper.initTableInfo(assistant, ResourceEntity.class);
+    }
 
     @TempDir
     Path tempDir;
