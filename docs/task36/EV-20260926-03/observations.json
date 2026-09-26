@@ -1,0 +1,76 @@
+{
+  "checked_at": "2026-09-26T14:46:00.888213+08:00",
+  "method": "specified paths, git object checks, hashed declared sources; no service, database or network connection",
+  "snapshot_path": "snapshot.json",
+  "snapshot_sha256": "22146ec3919d2f0b9b303574b78a0347f9ac5c39dba6a38b8e12fff496496021",
+  "git": {
+    "head": "24b76dc0f1742e1a0ac752700c3dcff9232e812c",
+    "head_exit": 0,
+    "branch": "recovery/20260923-candidate",
+    "branch_exit": 0,
+    "status_exit": 0,
+    "dirty": false,
+    "status_entry_count": 0,
+    "fsck_exit": 0,
+    "fsck_output_bytes": 330,
+    "fsck_command": "git -C <repo> fsck --full --no-reflogs --no-progress",
+    "fsck_stdout_path": "git-fsck.stdout.txt",
+    "fsck_stdout_sha256": "f00d450bf9044ce27e3e414fc3b58878601594da6b553af08d88e3ffd8b85981",
+    "fsck_stderr_path": "git-fsck.stderr.txt",
+    "fsck_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "old_commit_objects": {
+      "429b339": {
+        "commit_object_present": false,
+        "exit_code": 128
+      },
+      "dbef395": {
+        "commit_object_present": false,
+        "exit_code": 128
+      },
+      "d367204": {
+        "commit_object_present": false,
+        "exit_code": 128
+      },
+      "13a6f8d": {
+        "commit_object_present": false,
+        "exit_code": 128
+      }
+    }
+  },
+  "docs_baseline": "sha256:2e7f355fa9b2d9a03c7f2ceb789d026f62a728357bebd3db072ae8af0fd23721",
+  "c_recovery_root": {
+    "path": "C:\\AgentWork-recovery",
+    "exists": false
+  },
+  "staging": {
+    "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923",
+    "exists": true,
+    "integrity_summary_readable": true,
+    "integrity_summary_historical_checked_at": "2026-09-23 16:39:48 +08:00",
+    "integrity_summary_historical_expected": 247,
+    "integrity_summary_historical_copied": 247,
+    "integrity_summary_historical_mismatch": 0,
+    "live_repo_copy_historical_checked_at": "2026-09-23 16:48:19 +08:00",
+    "live_repo_copy_historical_pairs": 235,
+    "current_full_247_file_rehash": "not performed"
+  },
+  "new_pgdata": {
+    "path": "E:\\AgentWork\\CangShu-db-rebuild-20260923\\pgdata",
+    "path_exists": true,
+    "pg_version_file_exists": true,
+    "postmaster_pid_exists": false,
+    "database_connection_or_query": "not performed"
+  },
+  "os_observations_path": "os-observations.json",
+  "os_observations_sha256": "d489460498b101e910c888f58725b01c704d0e4c2e744507ae6c4e13200f2fd3",
+  "os_process_and_port": {
+    "checked_at": "2026-09-26T14:42:33.1675783+08:00",
+    "netstat_exit": 0,
+    "port_15433_listen_count": 0,
+    "winfr_visible_count": 0,
+    "winfr_visible_pids": [],
+    "command_scope": "netstat -ano -p tcp filtered to local TCP 15433; Get-Process -Name WinFR"
+  },
+  "current_full_business_test": "not performed in this audit",
+  "current_remote_delivery": "not queried in this audit; use single-writer receipt"
+}

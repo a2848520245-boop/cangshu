@@ -1,0 +1,212 @@
+{
+  "checked_at": "2026-09-26T14:46:00.888213+08:00",
+  "scope": "declared small reports and two historical ZIPs; no recursive source scan",
+  "sources": [
+    {
+      "path": "C:\\AgentWork-recovery\\HANDOFF-20260923.md",
+      "current_exists": false,
+      "historical_sha256": "4928cc322cd24903d6fd4d1a6548cc1c2a7b20191740c693bb83ab745ae2a587",
+      "historical_bytes": 6629,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only"
+    },
+    {
+      "path": "C:\\AgentWork-recovery\\reconstruction\\RECOVERY-REPORT.md",
+      "current_exists": false,
+      "historical_sha256": "410d91ef1500008874af72c6b903da591b52fde4eb3b2e60a93a4498531f10e5",
+      "historical_bytes": 21599,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only"
+    },
+    {
+      "path": "C:\\Users\\詩\\Documents\\Codex\\CangShu-offsite-readback-7b3d18fe149c4d33b3d39e6c5ea68d3f\\OFFSITE-BACKUP-VERIFICATION-20260923.md",
+      "current_exists": true,
+      "historical_sha256": "35718a979a467b0a42f3bd8bcfc27e8dd0bda34702a01911e0911149a8a872d7",
+      "historical_bytes": 1723,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 1723,
+      "current_sha256": "35718a979a467b0a42f3bd8bcfc27e8dd0bda34702a01911e0911149a8a872d7"
+    },
+    {
+      "path": "C:\\Users\\詩\\Documents\\Codex\\CangShu-offsite-readback-7b3d18fe149c4d33b3d39e6c5ea68d3f\\received.zip",
+      "current_exists": true,
+      "current_bytes": 781466,
+      "current_sha256": "812e498815895ab2b6fd1f8e10e3f72ade2e0aa86114bd71e9a7efeaeacbe3b8"
+    },
+    {
+      "path": "D:\\CangShu-backups\\github-readback-20260924-014546\\readback-result.json",
+      "current_exists": true,
+      "current_bytes": 382,
+      "current_sha256": "9d7b6bd42748b835ff55e1a6e6982f2ae62241fb47e45a683ffe56c440d50cd6"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\backup-transfer-20260923\\backup-transfer-20260923.zip",
+      "current_exists": true,
+      "current_bytes": 781466,
+      "current_sha256": "812e498815895ab2b6fd1f8e10e3f72ade2e0aa86114bd71e9a7efeaeacbe3b8"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\integrity-manifest.csv",
+      "current_exists": true,
+      "historical_sha256": "f250f2c63f056e1e9c0011cd75ac637239d30bf0d640cacf9570552d4b875caf",
+      "historical_bytes": 54954,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 54954,
+      "current_sha256": "f250f2c63f056e1e9c0011cd75ac637239d30bf0d640cacf9570552d4b875caf"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\integrity-summary.json",
+      "current_exists": true,
+      "historical_sha256": "af5be3e0aede3e1552b630edba4713210cd0c1e52ac5bd9b579481f011be3c47",
+      "historical_bytes": 362,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 362,
+      "current_sha256": "af5be3e0aede3e1552b630edba4713210cd0c1e52ac5bd9b579481f011be3c47"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\live-repo-copy-manifest.csv",
+      "current_exists": true,
+      "historical_sha256": "6b3fce4a9792187030b1528c2e3c324bd97beea110719a68d649a2354c6f2cd1",
+      "historical_bytes": 48976,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 48976,
+      "current_sha256": "6b3fce4a9792187030b1528c2e3c324bd97beea110719a68d649a2354c6f2cd1"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\live-repo-copy-summary.json",
+      "current_exists": true,
+      "historical_sha256": "01612024c4aea2ece6325b18ce56f168505d7336f2cba3b6307a6f8de5c198ee",
+      "historical_bytes": 862,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 862,
+      "current_sha256": "01612024c4aea2ece6325b18ce56f168505d7336f2cba3b6307a6f8de5c198ee"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\PREVENTION-SPEC-DRAFT-20260923.md",
+      "current_exists": true,
+      "historical_sha256": "d4d04717a04c425ac4dff559c06da3d3d0932d837b50c6ad194d9bc5893caed5",
+      "historical_bytes": 34509,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 34509,
+      "current_sha256": "d4d04717a04c425ac4dff559c06da3d3d0932d837b50c6ad194d9bc5893caed5"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\RECOVERY-CLOSURE-REPORT-20260923.md",
+      "current_exists": true,
+      "historical_sha256": "a52436f380ac2ce4e50ecca417a7675ee9b198bf67459fca70f7f7fe401fc683",
+      "historical_bytes": 12598,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 12598,
+      "current_sha256": "a52436f380ac2ce4e50ecca417a7675ee9b198bf67459fca70f7f7fe401fc683"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\verification\\2026-09-23-mvn-test-02\\test-summary.md",
+      "current_exists": true,
+      "historical_sha256": "8c211ba9d0036ddb0316b2f3dc8f07c5fd7612c4eccf369a7e428e953ba16f30",
+      "historical_bytes": 2104,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 2104,
+      "current_sha256": "8c211ba9d0036ddb0316b2f3dc8f07c5fd7612c4eccf369a7e428e953ba16f30"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\verification\\pg-rebuild-20260923\\postgres-rebuild-success.md",
+      "current_exists": true,
+      "historical_sha256": "a792960e010e23e18bc7e10c2ef54a3d24e7f0d94d41b6d0eefe8f8ae4489890",
+      "historical_bytes": 3167,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 3167,
+      "current_sha256": "a792960e010e23e18bc7e10c2ef54a3d24e7f0d94d41b6d0eefe8f8ae4489890"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\verification\\restart-persistence-20260923\\restart-persistence-final-report.md",
+      "current_exists": true,
+      "historical_sha256": "cc0f0771fe6f8ab38666718f68dabd442b3eb33103adffaf13e02e0c494bebd7",
+      "historical_bytes": 3278,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 3278,
+      "current_sha256": "cc0f0771fe6f8ab38666718f68dabd442b3eb33103adffaf13e02e0c494bebd7"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\verification\\runtime-smoke-20260923\\runtime-smoke-v5-final-report.md",
+      "current_exists": true,
+      "historical_sha256": "84e5f0154c6fdfda9805e0a912839d8076250f2669c2045f3dcbdb39a661103f",
+      "historical_bytes": 3694,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 3694,
+      "current_sha256": "84e5f0154c6fdfda9805e0a912839d8076250f2669c2045f3dcbdb39a661103f"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu-recovery-staging-20260923\\verification\\unit-only-20260923\\test-summary.md",
+      "current_exists": true,
+      "historical_sha256": "e15ea4947e275b293b035eef1c884887dc4ac78440eddff611b47c4bde24a917",
+      "historical_bytes": 1453,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 1453,
+      "current_sha256": "e15ea4947e275b293b035eef1c884887dc4ac78440eddff611b47c4bde24a917"
+    },
+    {
+      "path": "E:\\AgentWork\\CangShu\\_status\\task18-active-docs-delivery-20260926\\receipt.md",
+      "current_exists": true,
+      "current_bytes": 2656,
+      "current_sha256": "e24082edd0dbbb70c0f90a266201afbf347171eaab8836ee15556c6e4ec2728a"
+    },
+    {
+      "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠\\07-M1-运行手册.md",
+      "current_exists": true,
+      "historical_sha256": "e56409027c1c3906223a9b949bde61a1668a8e0d768b3c02e13ef5c7a41d83cc",
+      "historical_bytes": 18445,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 19987,
+      "current_sha256": "18b00d5ea83749f1aa752bfaaebbd7b32e6b5fa6c91f3dea3577ebf4e8aab21d"
+    },
+    {
+      "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠\\08-M1-验收规范.md",
+      "current_exists": true,
+      "historical_sha256": "f09c2ea3cb00f59ddae28eb4fec399112b588c73351273d42d47c155018adc81",
+      "historical_bytes": 19963,
+      "historical_reference": "EV-20260924-02 source-index; historical checkpoint only",
+      "current_bytes": 19259,
+      "current_sha256": "c5649c37eee4e98663f0e7db0b40f400372cf5ba409a3412be6ad98caae92766"
+    },
+    {
+      "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠\\归档\\验收证据\\EV-20260924-01\\manifest.json",
+      "current_exists": true,
+      "current_bytes": 983,
+      "current_sha256": "d568110c315bdd0154f705dd132d54f601efa00c317cf37031d2de10eb04b06b"
+    },
+    {
+      "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠\\归档\\验收证据\\EV-20260924-01\\prior-audit.md",
+      "current_exists": true,
+      "current_bytes": 7512,
+      "current_sha256": "dcc396a1f3e158dd0e43cc3f6c2be0151f18c9d2547fa922dcce18e84a39e7f3"
+    },
+    {
+      "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠\\归档\\验收证据\\EV-20260924-02\\manifest.json",
+      "current_exists": true,
+      "current_bytes": 1046,
+      "current_sha256": "7927510fee49719c4e89d70fd7899277ad2c60db583beca8ffd94c1a1ba250d0"
+    },
+    {
+      "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠\\归档\\验收证据\\EV-20260924-02\\observations.json",
+      "current_exists": true,
+      "current_bytes": 1042,
+      "current_sha256": "df19036157d462d696efdda6a32595236262550d2791dc0418fdddef91507a34"
+    },
+    {
+      "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠\\归档\\验收证据\\EV-20260924-02\\source-index.json",
+      "current_exists": true,
+      "current_bytes": 6596,
+      "current_sha256": "e6487b573e112264e393914ce34ae388c3e72b3938a9b76d3bf6c7d15a0e853f"
+    },
+    {
+      "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠\\归档\\验收证据\\EV-20260924-02\\恢复声明当前复验.md",
+      "current_exists": true,
+      "current_bytes": 4348,
+      "current_sha256": "43e96c09d3b4c4e4aa75de67b85d1b5770e20d29ee68a01548094f781e23682b"
+    },
+    {
+      "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠\\归档\\验收证据\\EV-20260924-02\\证据页.md",
+      "current_exists": true,
+      "current_bytes": 952,
+      "current_sha256": "639fe695c5776ea6ddf93dccb029728a53a46a98754b4dc48197c47b8ac33662"
+    }
+  ]
+}

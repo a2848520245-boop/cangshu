@@ -1,0 +1,83 @@
+{
+  "schema": "cangshu.doc-status/1",
+  "kind": "snapshot",
+  "tool_version": "1.0.0",
+  "generated_at": "2026-09-26T14:42:09+08:00",
+  "repo": {
+    "path": "E:\\AgentWork\\CangShu\\cangshu",
+    "observable": true,
+    "head": "24b76dc0f1742e1a0ac752700c3dcff9232e812c",
+    "branch": "recovery/20260923-candidate",
+    "dirty": false,
+    "dirty_count": 0,
+    "changes": [],
+    "error": null,
+    "queried_at": "2026-09-26T14:42:09+08:00"
+  },
+  "docs": {
+    "path": "E:\\詩\\Documents\\NOTE\\obsidian-kb-starter\\10-常用\\仓鼠",
+    "files": {
+      "01-开发宪章与治理.md": {
+        "present": true,
+        "sha256": "df1b8bef546e93d66fceef64b2b400e799e199c34cd4b487a135018daf66bb1e",
+        "bytes": 12504,
+        "file_bytes": 13782,
+        "marker": true
+      },
+      "ADR-0001-项目启动与技术栈裁决.md": {
+        "present": true,
+        "sha256": "71bbd2f68fcf74ddade2568815c4943a7a9436d0453bf10d59ad066ba37845da",
+        "bytes": 21864,
+        "file_bytes": 21864,
+        "marker": false
+      },
+      "03-M1-SPEC.md": {
+        "present": true,
+        "sha256": "9d00d9542da5c65718fcafee4a12762620b57b073b13f44abbf53030c9310001",
+        "bytes": 15956,
+        "file_bytes": 15956,
+        "marker": false
+      },
+      "04-M1-架构与计划.md": {
+        "present": true,
+        "sha256": "6b94b533b6920895f451f0e6e5bf140794ff8b2912420c85cd98f073c9245d7a",
+        "bytes": 14359,
+        "file_bytes": 14359,
+        "marker": false
+      },
+      "05-M1-接口契约.md": {
+        "present": true,
+        "sha256": "949b5c2ab15224e9687411f8910918e3266377834df887191021f267d97e39f3",
+        "bytes": 9385,
+        "file_bytes": 9385,
+        "marker": false
+      },
+      "06-M1-数据契约.md": {
+        "present": true,
+        "sha256": "10c8cbaf40e83afab96f1c3a91d087700f214db8aee655900e1fb3c78c1d4269",
+        "bytes": 10642,
+        "file_bytes": 10642,
+        "marker": false
+      },
+      "07-M1-运行手册.md": {
+        "present": true,
+        "sha256": "18b00d5ea83749f1aa752bfaaebbd7b32e6b5fa6c91f3dea3577ebf4e8aab21d",
+        "bytes": 19987,
+        "file_bytes": 19987,
+        "marker": false
+      },
+      "08-M1-验收规范.md": {
+        "present": true,
+        "sha256": "c5649c37eee4e98663f0e7db0b40f400372cf5ba409a3412be6ad98caae92766",
+        "bytes": 19259,
+        "file_bytes": 19259,
+        "marker": false
+      }
+    },
+    "missing": [],
+    "complete": true,
+    "present_count": 8,
+    "baseline_id": "sha256:2e7f355fa9b2d9a03c7f2ceb789d026f62a728357bebd3db072ae8af0fd23721",
+    "checked_at": "2026-09-26T14:42:09+08:00"
+  }
+}

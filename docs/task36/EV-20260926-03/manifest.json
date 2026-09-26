@@ -1,0 +1,72 @@
+{
+  "task_id": "36",
+  "kind": "doc",
+  "verified_at": "2026-09-26T14:56:30+08:00",
+  "observed_head": "24b76dc0f1742e1a0ac752700c3dcff9232e812c",
+  "docs_baseline": "sha256:2e7f355fa9b2d9a03c7f2ceb789d026f62a728357bebd3db072ae8af0fd23721",
+  "checks": [
+    {
+      "id": "ACC-PREV-E",
+      "result": "pass",
+      "note": "十条恢复声明的资产范围、来源、参考时点、可复核证据及缺失项经独立主审接受；仅声明审计，不证明原仓或旧业务数据恢复"
+    }
+  ],
+  "exit_code": 0,
+  "artifacts": [
+    {
+      "path": "证据页.md",
+      "sha256": "8ef313b835b791329e2637be5da5c7ad74b16c5f26354f88391c26ff8f22dcef",
+      "bytes": 3038
+    },
+    {
+      "path": "恢复声明当前复验.md",
+      "sha256": "268853f2a59dba379e9526d30a39d54dbb3ac806e6ca4edab08fbf3782c41fb3",
+      "bytes": 6684
+    },
+    {
+      "path": "snapshot.json",
+      "sha256": "22146ec3919d2f0b9b303574b78a0347f9ac5c39dba6a38b8e12fff496496021",
+      "bytes": 2632
+    },
+    {
+      "path": "observations.json",
+      "sha256": "0ec0c0d4a58268226cc7efa63091829de4ae7136ca634f89c36d9b12fdb626f1",
+      "bytes": 2967
+    },
+    {
+      "path": "os-observations.json",
+      "sha256": "d489460498b101e910c888f58725b01c704d0e4c2e744507ae6c4e13200f2fd3",
+      "bytes": 268
+    },
+    {
+      "path": "source-index.json",
+      "sha256": "d7b8338cd154c15c3885b3709bda4eb53c74373f9ac8406b3595cd4f1cd23c41",
+      "bytes": 11127
+    },
+    {
+      "path": "git-fsck.stdout.txt",
+      "sha256": "f00d450bf9044ce27e3e414fc3b58878601594da6b553af08d88e3ffd8b85981",
+      "bytes": 336
+    },
+    {
+      "path": "git-fsck.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "collect-readonly.py",
+      "sha256": "1578ff46718c0bdc43f50da9fe3ddb1c3ba132e7386c96b5ad66b9ab427b9f3d",
+      "bytes": 6728
+    },
+    {
+      "path": "task18-delivery-observed-1446.md",
+      "sha256": "e24082edd0dbbb70c0f90a266201afbf347171eaab8836ee15556c6e4ec2728a",
+      "bytes": 2656
+    },
+    {
+      "path": "task18-delivery-after-authorization.md",
+      "sha256": "b88f24932be05e2f438e16f5c57508859c2df2cfca6c37338400cd69fe4e09c3",
+      "bytes": 3984
+    }
+  ]
+}
