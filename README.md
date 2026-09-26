@@ -5,12 +5,17 @@
 ## 技术与范围
 
 Java 21、Spring Boot 3.5、Maven、MyBatis-Plus、PostgreSQL 17，模块化单体。
-M1 无前端；Vue 3、TypeScript、Vite 属后续规划。多用户、外网、目录导入、分片与秒传不在 M1。
+M1 含 Vue 3、TypeScript、Vite 最小浏览器界面。多用户、外网、目录导入、分片与客户端秒传不在 M1。
 
 ## 构建与运行
 
-- 构建：`JAVA_HOME` 指向 JDK 21 后执行 `mvn -B -ntp -Dmaven.repo.local=var/m2repo package`（默认端口 8080）。
+- 构建：`JAVA_HOME` 指向 JDK 21，并安装 Node 22/npm 10；在 PowerShell 中执行 `$repo = Join-Path (Get-Location) 'var/m2repo'; mvn -B -ntp "-Dmaven.repo.local=$repo" clean package`。必须从 `clean` 开始，避免上次构建的旧前端资源残留在 JAR 的 `static/`。Maven 用 `frontend/package-lock.json` 执行 `npm ci` 与前端构建，然后将静态文件放入 Boot JAR；任何一步失败则 package 失败。依赖下载单次指向官方 npm registry，缓存位于 `target/npm-cache`。
 - 启动：`java -jar target/cangshu-0.1.0-SNAPSHOT.jar`。
+- 浏览器打开同源根路径 `/`。上传、列表和搜索、详情、下载、回收站均调用已有 `/api` 端点；安全预览只对 PNG/JPEG/GIF/WebP、PDF 和纯文本开放，并在 sandbox iframe 中显示。下载先用 HEAD 检查内容端点，再交给浏览器原生流式下载；传输中断以浏览器下载记录为准。
+- 前端开发：在 `frontend` 执行 `npm ci --registry=https://registry.npmjs.org --cache=../target/npm-cache` 后 `npm run dev`，Vite 将 `/api` 代理到本机 8080。Mock 浏览器回归执行 `npm run test:mock`，其结果只证明前端交互与 API 契约，不是 ACC-UI 真实后端端到端验收。
+- 前端纯单测：`cd frontend && npm run test:unit`，验证非 JSON 错误、204 响应及安全预览类型。`npm run test:mock` 自行启动并收束测试 Vite，真实 Chromium mock 报告在 `target/ui-mock-*`；无数据库。
+- task31 纯汇总回归：`pwsh -NoProfile -File scripts/test-task31-summary.ps1`，使用合成 JSON 验证退出码 0＝完整通过、1＝明确失败／异常、2＝证据不完整。`verify-task31-matrix.ps1` 已覆盖 14 个独立可达格的执行入口；正式三轮及负对照仍待隔离 VM 验收，不能当作 ACC-G4 全部通过。此回归不会建库或强杀进程。
+- CI 的 PostgreSQL＋真实浏览器门禁属于任务 40 的在途交付，当前不据其配置宣称已运行或通过。任务 39 的 mock 浏览器回归只证明前端交互；ACC-UI 仍需隔离 VM 中以真实 Spring Boot、PostgreSQL 和浏览器独立留证。
 - 健康检查：`GET /actuator/health` → `{"status":"UP"}`（引入数据源后，健康概要含数据库可达性）。
 - 最小接口：`GET /api/health` → 服务状态与六个定稿配置键的生效值（数据根为解析后的规范绝对路径）；
   启动日志同时输出一行 `CANGSHU|config|dataRoot=…` 记录解析结果。

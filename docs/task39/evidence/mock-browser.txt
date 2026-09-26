@@ -1,0 +1,22 @@
+
+> cangshu-web@0.1.0 test:mock
+> node tests/run-mock.mjs
+
+
+  VITE v7.3.1  ready in 688 ms
+
+  ➜  Local:   http://127.0.0.1:4173/
+
+Running 5 tests using 1 worker
+
+(node:2260) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2260) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [mock] › tests\mock.spec.ts:44:1 › mock: upload, deduplication, search, details, download and trash lifecycle (1.5s)
+  ok 2 [mock] › tests\mock.spec.ts:90:1 › mock: initial list failure has retry without an empty-state claim (363ms)
+  ok 3 [mock] › tests\mock.spec.ts:106:1 › mock: detail failure is visible and failed restore stays in trash (448ms)
+  ok 4 [mock] › tests\mock.spec.ts:126:1 › mock: failures, malicious filename text and stale list response (550ms)
+  ok 5 [mock] › tests\mock.spec.ts:158:1 › mock: search keeps filters while paging and a failed clear reports failure (615ms)
+
+  5 passed (8.7s)

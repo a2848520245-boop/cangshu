@@ -2,7 +2,8 @@
 #
 # 只装 JRE 与已构建产物：构建工具、源码、测试都不进交付镜像。
 # 构建前提（宿主上先做，与开发态同一份产物）：
-#   mvn -B -ntp -Dmaven.repo.local=var/m2repo -DskipTests package
+#   mvn -B -ntp -Dmaven.repo.local=<absolute-repo-cache-path> -DskipTests clean package
+# Maven 在打包前构建 Vue UI 并放入 JAR 的 static/；宿主需 Node 22/npm 10。
 # 依赖方向：本文件与 docker-compose.yml 只描述编排，不含任何业务规则。
 FROM eclipse-temurin:21-jre
 

@@ -1,0 +1,69 @@
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------------< com.cangshu:cangshu >-------------------------
+[INFO] Building cangshu 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- clean:3.4.1:clean (default-clean) @ cangshu ---
+[INFO] Deleting E:\AgentWork\CangShu\cangshu\target
+[INFO]
+[INFO] --- exec:3.5.1:exec (build-frontend) @ cangshu ---
+
+added 50 packages in 7s
+npm notice
+npm notice New major version of npm available! 10.9.8 -> 12.1.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.1.0
+npm notice To update run: npm install -g npm@12.1.0
+npm notice
+
+> cangshu-web@0.1.0 build
+> vue-tsc --noEmit && vite build
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 12 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  0.37 kB │ gzip:  0.29 kB
+dist/assets/index-cGw4Xkej.css   2.15 kB │ gzip:  0.93 kB
+dist/assets/index-ODjOKCOT.js   75.31 kB │ gzip: 29.76 kB
+✓ built in 1.41s
+(node:13544) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[INFO]
+[INFO] --- resources:3.3.1:resources (default-resources) @ cangshu ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO]
+[INFO] --- resources:3.3.1:copy-resources (copy-frontend) @ cangshu ---
+[INFO] Copying 3 resources from frontend\dist to target\classes\static
+[INFO]
+[INFO] --- compiler:3.14.1:compile (default-compile) @ cangshu ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 55 source files with javac [debug parameters release 21] to target\classes
+[INFO]
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ cangshu ---
+[INFO] Copying 2 resources from src\test\resources to target\test-classes
+[INFO]
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ cangshu ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 33 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /E:/AgentWork/CangShu/cangshu/src/test/java/com/cangshu/catalog/CatalogServiceTests.java: 某些输入文件使用了未经检查或不安全的操作。
+[INFO] /E:/AgentWork/CangShu/cangshu/src/test/java/com/cangshu/catalog/CatalogServiceTests.java: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ cangshu ---
+[INFO] Tests are skipped.
+[INFO]
+[INFO] --- jar:3.4.2:jar (default-jar) @ cangshu ---
+[INFO] Building jar: E:\AgentWork\CangShu\cangshu\target\cangshu-0.1.0-SNAPSHOT.jar
+[INFO]
+[INFO] --- spring-boot:3.5.16:repackage (repackage) @ cangshu ---
+[INFO] Replacing main artifact E:\AgentWork\CangShu\cangshu\target\cangshu-0.1.0-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to E:\AgentWork\CangShu\cangshu\target\cangshu-0.1.0-SNAPSHOT.jar.original
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  30.342 s
+[INFO] Finished at: 2026-09-26T13:43:58+08:00
+[INFO] ------------------------------------------------------------------------

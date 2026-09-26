@@ -1,0 +1,75 @@
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------------< com.cangshu:cangshu >-------------------------
+[INFO] Building cangshu 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- exec:3.5.1:exec (build-frontend) @ cangshu ---
+
+added 50 packages in 5s
+
+> cangshu-web@0.1.0 build
+> vue-tsc --noEmit && vite build
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 12 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  0.37 kB │ gzip:  0.29 kB
+dist/assets/index-cGw4Xkej.css   2.15 kB │ gzip:  0.93 kB
+dist/assets/index-BZn7SZv9.js   75.29 kB │ gzip: 29.76 kB
+✓ built in 1.45s
+(node:1356) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[INFO]
+[INFO] --- resources:3.3.1:resources (default-resources) @ cangshu ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO]
+[INFO] --- resources:3.3.1:copy-resources (copy-frontend) @ cangshu ---
+[INFO] Copying 3 resources from frontend\dist to target\classes\static
+[INFO]
+[INFO] --- compiler:3.14.1:compile (default-compile) @ cangshu ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ cangshu ---
+[INFO] Copying 2 resources from src\test\resources to target\test-classes
+[INFO]
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ cangshu ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 33 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /E:/AgentWork/CangShu/cangshu/src/test/java/com/cangshu/catalog/CatalogServiceTests.java: 某些输入文件使用了未经检查或不安全的操作。
+[INFO] /E:/AgentWork/CangShu/cangshu/src/test/java/com/cangshu/catalog/CatalogServiceTests.java: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ cangshu ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.cangshu.api.ResourceHeadContractTests
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (E:\AgentWork\CangShu\cangshu\var\m2repo\net\bytebuddy\byte-buddy-agent\1.17.8\byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:38:46.614 [main] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+13:38:46.615 [main] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+13:38:46.619 [main] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 3 ms
+13:38:46.766 [main] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+13:38:46.767 [main] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+13:38:46.767 [main] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.09 s -- in com.cangshu.api.ResourceHeadContractTests
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  42.068 s
+[INFO] Finished at: 2026-09-26T13:38:46+08:00
+[INFO] ------------------------------------------------------------------------

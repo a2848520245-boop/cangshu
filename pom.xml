@@ -59,6 +59,21 @@
 
   <build>
     <plugins>
+      <!-- A normal package always builds the same-origin UI before resources enter the Boot JAR. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions><execution><id>build-frontend</id><phase>generate-resources</phase><goals><goal>exec</goal></goals>
+          <configuration><executable>node</executable><arguments><argument>frontend/build.mjs</argument></arguments></configuration>
+        </execution></executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions><execution><id>copy-frontend</id><phase>process-resources</phase><goals><goal>copy-resources</goal></goals>
+          <configuration><outputDirectory>${project.build.outputDirectory}/static</outputDirectory><resources><resource><directory>frontend/dist</directory><filtering>false</filtering></resource></resources></configuration>
+        </execution></executions>
+      </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
